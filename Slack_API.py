@@ -12,10 +12,5 @@ class Slack(object):
         self.slack_client = SlackClient(self.bot_token)
         
     def send_message(self, message='hello world!', channel_name='#general'):
-        ret = self.slack_client.api_call('chat.postMessage', channel=channel_name, text=message)
-        return ret
-        
-    def reply_message(self, message='I replied!', channel_name='#general', timestamp=0):
-        ret = self.slack_client.api_call('chat.postMessage', channel=channel_name, text=message, ts=timestamp)
-        return ret
+        self.slack_client.api_call('chat.postMessage', channel=channel_name, text=message)
 
