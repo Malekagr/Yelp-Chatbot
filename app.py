@@ -5,7 +5,7 @@ from flask import Flask
 app = Flask(__name__)
 
 # found in OAuth and Permission section
-SLACK_BOT_TOKEN = ''
+SLACK_BOT_TOKEN = 'xoxb-311305854327-QXJDo079SwxZUFhYMsFWmbmq'
 
 # Part of App Credentials
 SLACK_VERIFICATION_TOKEN = ''
