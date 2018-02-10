@@ -2,9 +2,10 @@ from Slack_API import Slack
 from slackeventsapi import SlackEventAdapter
 from flask import Flask
 
-SLACK_BOT_TOKEN = 'xoxb-309384138949-wInzZ71weN1LpnRMHZWNfjWh'
-bot = Slack(SLACK_BOT_TOKEN)
-slack_events_adapter = SlackEventAdapter(SLACK_VERIFICATION_TOKEN, endpoint="/slack/events", server=app)
+SLACK_BOT_TOKEN = ''
+SLACK_VERIFICATION_TOKEN = ''
+bot = Slack(SLACK_BOT_TOKEN, SLACK_VERIFICATION_TOKEN)
+slack_events_adapter = SlackEventAdapter(bot.verf_token, endpoint="/slack/events", server=app)
 
 @slack_events_adapter.on("message")
 # requires 'message' scope (Event API)
