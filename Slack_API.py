@@ -11,6 +11,6 @@ class Slack(object):
         self.verf_token = verfication_token
         self.slack_client = SlackClient(self.bot_token)
         
-    def send_message(self, message='hello world!', channel_name='#general'):
-        self.slack_client.api_call('chat.postMessage', channel=channel_name, text=message)
+    def send_message(self, message='hello world!', channel='#general'):
+        self.slack_client.api_call('chat.postMessage', channel=channel, text=message)
 
