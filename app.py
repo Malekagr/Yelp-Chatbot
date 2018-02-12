@@ -23,7 +23,7 @@ def handle_message(event_data):
         channel = message["channel"]
         msg = "<@%s> just typed: " % message["user"] + message["text"] + " :simple_smile:"
         print('Attempting to post:', msg)
-        slack_client.api_call("chat.postMessage", channel=channel, text=msg, as_user=True)
+        slack_client.api_call("chat.postMessage", channel=channel, text=msg)
         
 @slack_events_adapter.on("reaction_added")
 # requires 'reaction_added' scope
@@ -32,4 +32,4 @@ def reaction_added(event_data):
     emoji = event["reaction"]
     channel = event["item"]["channel"]
     text = ":%s:" % emoji
-    slack_client.api_call("chat.postMessage", channel=channel, text=text, as_user=True)
+    slack_client.api_call("chat.postMessage", channel=channel, text=text)
