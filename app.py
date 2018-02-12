@@ -17,6 +17,7 @@ slack_events_adapter = SlackEventAdapter(SLACK_VERIFICATION_TOKEN, endpoint="/sl
 @slack_events_adapter.on("message")
 # requires 'message' scope
 def handle_message(event_data):
+    print(event_data)
     message = event_data["event"]
     if message.get("subtype") is None:
         channel = message["channel"]
