@@ -19,7 +19,7 @@ slack_events_adapter = SlackEventAdapter(SLACK_VERIFICATION_TOKEN, endpoint="/sl
 def handle_message(event_data):
     print(event_data)
     message = event_data["event"]
-    if message.get("subtype") is None:
+    if message.get("subtype") is None and "hi" in message.get('text'):
         channel = message["channel"]
         msg = "<@%s> just typed: " % message["user"] + message["text"] + " :simple_smile:"
         print('Attempting to post:', msg)
