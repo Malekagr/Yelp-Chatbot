@@ -8,7 +8,7 @@ app = Flask(__name__)
 SLACK_BOT_TOKEN = 'xoxb-313903713426-UJKPHKX598yn8PbrLV4i9Yue'
 
 # Part of App Credentials
-SLACK_VERIFICATION_TOKEN = ''
+SLACK_VERIFICATION_TOKEN = 'zuBu6ghkakwlQhUWWI3RLBFy'
 
 slack_client = SlackClient(SLACK_BOT_TOKEN)
 slack_events_adapter = SlackEventAdapter(SLACK_VERIFICATION_TOKEN, endpoint="/slack/events", server=app)
