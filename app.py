@@ -22,6 +22,7 @@ def handle_message(event_data):
     if message.get("subtype") is None:
         channel = message["channel"]
         msg = "<@%s> just typed: " % message["user"] + message["text"] + " :simple_smile:"
+        print('Attempting to post:', msg)
         slack_client.api_call("chat.postMessage", channel=channel, text=msg, as_user=True)
         
 @slack_events_adapter.on("reaction_added")
