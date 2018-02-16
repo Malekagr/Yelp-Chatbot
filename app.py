@@ -21,7 +21,7 @@ def handle_message(event_data):
     message = event_data["event"]
     if message.get("subtype") is None and "hello world" in message.get('text'):
         channel = message["channel"]
-        msg = "<@%s> just typed: " % message["user"] + message["text"] + " :simple_smile:"
+        msg = "<@%s> just typed: " % message["user"] + message["text"] + " Malek Deploy"
         print('Attempting to post:', msg)
         slack_client.api_call("chat.postMessage", channel=channel, text=msg)
         
