@@ -1,0 +1,103 @@
+{
+    "id": "gary-danko-san-francisco",
+    "name": "Gary Danko",
+    "image_url": "https://s3-media2.fl.yelpcdn.com/bphoto/NCX50ST3Hjg7y8wTcwQXog/o.jpg",
+    "is_claimed": true,
+    "is_closed": false,
+    "url": "https://www.yelp.com/biz/gary-danko-san-francisco?adjust_creative=stwTqngi_3KlhnsLwlSSYA&utm_campaign=yelp_api_v3&utm_medium=api_v3_business_lookup&utm_source=stwTqngi_3KlhnsLwlSSYA",
+    "phone": "+14157492060",
+    "display_phone": "(415) 749-2060",
+    "review_count": 4732,
+    "categories": [
+        {
+            "alias": "newamerican",
+            "title": "American (New)"
+        },
+        {
+            "alias": "french",
+            "title": "French"
+        },
+        {
+            "alias": "wine_bars",
+            "title": "Wine Bars"
+        }
+    ],
+    "rating": 4.5,
+    "location": {
+        "address1": "800 N Point St",
+        "address2": "",
+        "address3": "",
+        "city": "San Francisco",
+        "zip_code": "94109",
+        "country": "US",
+        "state": "CA",
+        "display_address": [
+            "800 N Point St",
+            "San Francisco, CA 94109"
+        ],
+        "cross_streets": ""
+    },
+    "coordinates": {
+        "latitude": 37.80587,
+        "longitude": -122.42058
+    },
+    "photos": [
+        "https://s3-media2.fl.yelpcdn.com/bphoto/NCX50ST3Hjg7y8wTcwQXog/o.jpg",
+        "https://s3-media1.fl.yelpcdn.com/bphoto/FPKISqnxIvdOI20JGyRSwQ/o.jpg",
+        "https://s3-media3.fl.yelpcdn.com/bphoto/n_0M2diQx5D707rXqu8mRw/o.jpg"
+    ],
+    "price": "$$$$",
+    "hours": [
+        {
+            "open": [
+                {
+                    "is_overnight": false,
+                    "start": "1730",
+                    "end": "2200",
+                    "day": 0
+                },
+                {
+                    "is_overnight": false,
+                    "start": "1730",
+                    "end": "2200",
+                    "day": 1
+                },
+                {
+                    "is_overnight": false,
+                    "start": "1730",
+                    "end": "2200",
+                    "day": 2
+                },
+                {
+                    "is_overnight": false,
+                    "start": "1730",
+                    "end": "2200",
+                    "day": 3
+                },
+                {
+                    "is_overnight": false,
+                    "start": "1730",
+                    "end": "2200",
+                    "day": 4
+                },
+                {
+                    "is_overnight": false,
+                    "start": "1730",
+                    "end": "2200",
+                    "day": 5
+                },
+                {
+                    "is_overnight": false,
+                    "start": "1730",
+                    "end": "2200",
+                    "day": 6
+                }
+            ],
+            "hours_type": "REGULAR",
+            "is_open_now": false
+        }
+    ],
+    "transactions": [
+        "restaurant_reservation"
+    ]
+}

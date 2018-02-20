@@ -3,9 +3,11 @@
 # https://pypi.python.org/pypi/slackclient
 
 # This shows an example of sending a message to Slack
-
 from slackclient import SlackClient
 import json
+
+def send_message(channel, **msg):
+	slack_client.api_call("chat.postMessage", channel=channel, **msg)
 
 SLACK_BOT_TOKEN = 'xoxb-313903713426-UJKPHKX598yn8PbrLV4i9Yue'
 
@@ -16,7 +18,5 @@ msg = json.load(open("message.json"))
 # under the name of the bot
 # you can change the channel parameter to any other existing channel names,
 # for example '#random'
-send_message("bot-testing", message)
+send_message("bot-testing", **msg)
 
-def send_message(msg, channel):
-	slack_client.api_call("chat.postMessage", channel=channel, **msg)
