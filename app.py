@@ -30,7 +30,7 @@ def handle_message(event_data):
     if message.get("subtype") is None and "hello" in message.get('text'):
         channel = message["channel"]
         msg = "Hi <@%s>! :simple_smile:" % message["user"]
-        click.echo('Attempting to post:', msg)
+        click.echo('Attempting to post:' + msg)
         slack_client.api_call("chat.postMessage", channel=channel, text=msg)
 
 # requires 'reaction_added' scope
