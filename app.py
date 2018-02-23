@@ -29,14 +29,20 @@ slack_events_adapter = SlackEventAdapter(app.config["SLACK_VERIFICATION_TOKEN"],
 # requires 'message' scope
 @slack_events_adapter.on("message")
 def handle_message(event_data):
-  click.echo("Received a message")
-  click.echo(event_data)
   message = event_data["event"]
-  if message.get("subtype") is None and "hello" in message.get('text'):
+  if message.get("subtype") is None:
     channel = message["channel"]
-    msg = "Hi <@%s>! :simple_smile:" % message["user"]
-    click.echo('Attempting to post:' + msg)
-    send_message(channel, text=msg)
+    user = message["user"]
+
+    if "hello" in message.get('text'):
+      send_message(channel, text="Hi <@%s>! :simple_smile:" % user)
+
+    if "idsearch" in message.get('text'):
+      idterm = message.get('text').split()[-1]
+      restaurant = get_restaurant(idterm)
+      reviews = get_reviews(idterm)
+
+      send_message(channel, format_restaurant(restaurant, reviws))
 
 # send a message to channel
 # uses keyword args to expand message
@@ -45,31 +51,51 @@ def handle_message(event_data):
 def send_message(channel, **msg):
   slack_client.api_call("chat.postMessage", channel=channel, msg)
 
-# takes in a Yelp ID, nicely formats a restaurant with relevant info
-# TODO: use the stars that Yelp requires 
-def format_restaurant(id):
-  res = json.load(open("testres.json")) # get from Yelp
-  reviews = json.load(open("testreviews.json")) # get from Yelp
+# uses the Yelp API to search for a restaurant based on ID
+def get_restaurant(id):
+  return {}
 
-  # get name, url, price, an image
-  name = res["name"]
-  link = res["url"]
-  price = res["price"]
-  image = res["image_url"]
+# uses the Yelp API to search for reviews based on ID
+def get_reviews(id):
+  return {}
+
+# takes in the result of 2 Yelp API calls
+# nicely formats a restaurant with relevant info
+# TODO: use the stars that Yelp requires
+def format_restaurant(restaurant, reviews):
+  # we need a name and URL no matter what
+  if not ("name" in restaurant and "url" in restaurant):
+    return {"text": "Could not format"}
+  name = restaurant["name"]
+  link = restaurant["url"]
+
+  # price with fallback
+  price = "Unknown Price"
+  if "price" in restaurant:
+    price = restaurant["price"]
+
+  # image with fallback
+  image = ""
+  if "image" in restaurant:
+    image = restaurant["image_url"]
 
   # get star rating
   # TODO: Yelp requires us to use specific star icons
-  rating = "\u2605" * int(res["rating"]) + "\u2606" * (5 - int(res["rating"]))
+  rating = "Unknown Rating"
+  if "rating" in restaurant:
+    rating = "\u2605" * int(restaurant["rating"]) + "\u2606" * (5 - int(restaurant["rating"]))
 
   # get today's closing time
-  weekday = datetime.datetime.today().weekday()
-  endtime = res["hours"][0]["open"][weekday]["end"]
-  time = endtime[:2] + ":" + endtime[2:]
+  time = "Unknown Time"
+  if "time" in restaurant:
+    weekday = datetime.datetime.today().weekday()
+    endtime = restaurant["hours"][0]["open"][weekday]["end"]
+    time = endtime[:2] + ":" + endtime[2:]
 
   # get categories
   desc = "result"
-  if "categories" in res and len(res["categories"]) > 0:
-    desc = "/".join(map((lambda cat: cat["title"]), res["categories"]))
+  if "categories" in restaurant and len(restaurant["categories"]) > 0:
+    desc = "/".join(map((lambda cat: cat["title"]), restaurant["categories"]))
 
   # get review snippet
   snippet = ""
@@ -77,7 +103,9 @@ def format_restaurant(id):
     snippet = reviews["reviews"][0]["text"]
 
   # get address
-  address = ", ".join(res["location"]["display_address"])
+  address = "Unknown Address"
+  if "location" in restaurant and "display_address" in restaurant["location"]:
+    address = ", ".join(restaurant["location"]["display_address"])
 
   # get a link for navigation
   maps_api = "https://www.google.com/maps/search/?api=1&"
@@ -101,4 +129,4 @@ def format_restaurant(id):
   restaurant["footer_icon"] = footer_icon
   restaurant["fields"] = [{"title": "Open today until {} / {}".format(time, price)}]
 
-  print(formatted)
+  return formatted
