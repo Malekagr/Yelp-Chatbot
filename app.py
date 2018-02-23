@@ -13,6 +13,24 @@ SLACK_VERIFICATION_TOKEN = 'zuBu6ghkakwlQhUWWI3RLBFy'
 slack_client = SlackClient(SLACK_BOT_TOKEN)
 slack_events_adapter = SlackEventAdapter(SLACK_VERIFICATION_TOKEN, endpoint="/slack/events", server=app)
 
+# handles button press events
+@app.route("/slack/message_actions", methods=["POST"])
+def message_actions():
+    # Parse the request payload
+    form_json = json.loads(request.form["payload"])
+
+    # Check to see what the user's selection was and update the message
+    selection = form_json["actions"][0]["value"]
+
+    message_text = '<@{0}> selected {1}'.format(form_json["user"]["id"], selection)
+    
+    slack_client.api_call(
+      "chat.postMessage",
+      channel=form_json["channel"]["id"],
+      text=message_text
+    )
+
+    return make_response("", 200)
 
 @slack_events_adapter.on("message")
 # requires 'message' scope
