@@ -17,10 +17,11 @@ def format_restaurant(restaurant, reviews):
   link = restaurant["url"]
 
   formatted = {}
-  formatted["text"] = "I found {}! ({})".format(name, get_categories(restaurant))
   restaurant = {}
-  attachments = [restaurant]
+
   formatted["attachments"] = attachments
+
+  formatted["text"] = "I found {}! ({})".format(name, get_categories(restaurant))
   restaurant["fallback"] = name
   restaurant["color"] = sidebar_color
   restaurant["author_name"] = get_rating(restaurant)
@@ -54,7 +55,7 @@ def get_rating(restaurant):
     return "\u2605" * int(restaurant["rating"]) + "\u2606" * (5 - int(restaurant["rating"]))
   return "\u2606" * 5
 
-# get today's closing time
+# get today's closing time with fallback
 def get_time(restaurant):
   if "time" in restaurant:
     weekday = datetime.datetime.today().weekday()
@@ -67,7 +68,6 @@ def get_categories(restaurant):
   if "categories" in restaurant and len(restaurant["categories"]) > 0:
     return "/".join(map((lambda cat: cat["title"]), restaurant["categories"]))
   return "Unknown Categories"
-
 
 # get review snippet
 def get_review_snipet(reviews):
