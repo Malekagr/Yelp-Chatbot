@@ -1,7 +1,7 @@
 from slackclient import SlackClient
 from slackeventsapi import SlackEventAdapter
 from flask import Flask, request
-import click, os, sys, json
+import click, os, sys
 
 
 # import an environment variable as an app config option
