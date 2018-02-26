@@ -37,4 +37,4 @@ def handle_message(event_data):
 # for simple messages, use send_message(channel, text="simple message")
 # for dict/formatted messages, use send_message(channel, **msg)
 def send_message(channel, **msg):
-  slack_client.api_call("chat.postMessage", channel=channel, msg)
+  slack_client.api_call("chat.postMessage", channel=channel, **msg)
