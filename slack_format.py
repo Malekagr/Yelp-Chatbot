@@ -21,7 +21,7 @@ def format_with_vote_button(restaurant, reviews):
   formatted["callback_id"] = "vote"
   formatted["actions"] = [{
     "name": "vote",
-    "text": "Vote!"
+    "text": "Vote!",
     "name": restaurant["name"],
     "type": "button"
   }]
@@ -61,7 +61,7 @@ def format_restaurant(restaurant, reviews):
   restaurant_attachment["footer_icon"] = footer_icon
   restaurant_attachment["fields"] = [
     {"title": time, "short": "true"},
-    {"title": price, "short": "true"},
+    {"title": price, "short": "true"}
   ]
 
   return restaurant_attachment
