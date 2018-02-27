@@ -74,7 +74,7 @@ def get_price(restaurant):
 
 # get image with fallback
 def get_image(restaurant):
-  if "image" in restaurant:
+  if "image_url" in restaurant:
     return restaurant["image_url"]
   return placeholder_image
 
@@ -125,7 +125,6 @@ def get_address(restaurant):
   return None
 
 # get a link for navigation
-# TODO touch this up
 def get_nav_link(restaurant):
   address = get_address(restaurant)
   if address:
