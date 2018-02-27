@@ -1,4 +1,5 @@
 import click, os, sys
+import slack_format
 from slackclient import SlackClient
 from slackeventsapi import SlackEventAdapter
 from flask import Flask, make_response, Response, request
@@ -77,4 +78,4 @@ def search(channel):
     restaurants_arr.append(yelp_api.get_business(restaurant_id))
     reviews_arr.append(yelp_api.get_reviews(restaurant_id))
 
-  send_message(channel, **build_vote_message(restaurants_arr, reviews_arr))
+  send_message(channel, **slack_format.build_vote_message(restaurants_arr, reviews_arr))
