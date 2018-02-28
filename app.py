@@ -51,8 +51,8 @@ def handle_message(event_data):
     channel = message["channel"]
     user = message["user"]
 
-    click.echo("Received message '{}' from '{}' in '{}'".format(text, user, channel))
-
+    #click.echo("Received message '{}' from '{}' in '{}'".format(text, user, channel))
+    print(event_data) # will change this back if click.echo wasn't the problem
     if "hello" in text:
       send_message(channel, text="Hi <@%s>! :simple_smile:" % user)
 
