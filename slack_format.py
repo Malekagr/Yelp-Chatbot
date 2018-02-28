@@ -46,7 +46,7 @@ def format_restaurant(restaurant, reviews):
 
   time = "Currently closed."
   if is_open(restaurant):
-    time = "Open until {}".format(get_closing_time)
+    time = "Open until {}".format(get_closing_time(restaurant))
 
   restaurant_attachment = {}
   restaurant_attachment["fallback"] = name
