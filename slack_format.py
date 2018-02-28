@@ -87,7 +87,7 @@ def get_rating(restaurant):
 
 # get current open status
 def is_open(restaurant):
-  if "hours" in restaurant and "is_open_now" in restaurant["hours"]:
+  if "hours" in restaurant and "is_open_now" in restaurant["hours"][0]:
     return restaurant["hours"]["is_open_now"]
   return False
 
