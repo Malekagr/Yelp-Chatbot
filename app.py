@@ -64,13 +64,14 @@ def handle_message(event_data):
 # handles when bots name is mentioned/called/tagged
 @slack_events_adapter.on("app_mention")
 def bot_inovked(event_data):
-    print("BOT INVOKED")
+    #print("BOT INVOKED")
     message = event_data["event"]
     if message.get("subtype") is None and not message.get("text") is None:
         text = message["text"]
         channel = message["channel"]
         user = message["user"]
-        search(channel)
+        if 'botsearch' in text:
+            search(channel)
     return make_response("", 200)
 
 ##### HELPERS
