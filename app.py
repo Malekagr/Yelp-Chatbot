@@ -56,7 +56,7 @@ def handle_message(event_data):
     if "hello" in text:
       send_message(channel, text="Hi <@%s>! :simple_smile:" % user)
 
-    if "botsearch" in text:
+    if "@yelpchatbot" in text:
       search(channel)
 
   return make_response("", 200)
