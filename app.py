@@ -85,7 +85,7 @@ def bot_inovked(event_data):
         if "botsearch" in text:
             search(channel)
         else:
-            send_message(channel, text="What's up @<{0}>! :simple_smile:".format(user))
+            send_message(channel, text="What's up <@{0}>! :simple_smile:".format(user))
     return make_response("", 200)
 
 # timestamp caching function
