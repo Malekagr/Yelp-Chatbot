@@ -9,7 +9,7 @@ from poll import Poll
 
 ##### SETUP
 app = Flask(__name__)
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})
+cache = Cache(app, config={'CACHE_TYPE': 'simple','CACHE_DEFAULT_TIMEOUT': 1800})
 
 # import an environment variable as an app config option
 # throws KeyError
