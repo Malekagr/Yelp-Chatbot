@@ -5,7 +5,7 @@ from slackeventsapi import SlackEventAdapter
 from flask import Flask, make_response, Response, request
 from yelp import YelpAPI
 from flask_caching import Cache
-
+from poll import Poll
 
 ##### SETUP
 app = Flask(__name__)
@@ -28,6 +28,9 @@ slack_client = SlackClient(app.config["SLACK_BOT_TOKEN"])
 slack_events_adapter = SlackEventAdapter(app.config["SLACK_VERIFICATION_TOKEN"], endpoint="/slack/events", server=app)
 yelp_api = YelpAPI(app.config["YELP_API_KEY"])
 
+@app.route("/", methods=["POST", "GET"])
+def hello():
+    return 'OK'
 
 ##### EVENT HANDLERS
 
@@ -36,16 +39,17 @@ yelp_api = YelpAPI(app.config["YELP_API_KEY"])
 def message_actions():
   # Parse the request payload
   form_json = json.loads(request.form["payload"])
+  #print(form_json)
 
   # Check to see what the user's selection was and update the message
   selection = form_json["actions"][0]["value"]
-  cache_votes(form_json["user"]["id"], selection)
   
-  poll = Poll(,get_cached_votes())
+  cache_votes(form_json["user"]["id"], selection)
+  poll = Poll(get_msg_attachments(), get_cached_votes())
+  update_message(form_json["channel"]["id"], ts=get_votes_ts(), **poll.get_updated_attachments())
   
   message_text = "<@{0}> selected {1}".format(form_json["user"]["id"], selection)
-
-  send_message(channel=form_json["channel"]["id"], text=message_text)
+  print(message_text)
   return make_response("", 200)
 
 # requires 'message' scope
@@ -53,33 +57,58 @@ def message_actions():
 def handle_message(event_data):
   message = event_data["event"]
   if message.get("subtype") is None and not message.get("text") is None:
+    #ts = get_ts()
     text = message["text"]
     channel = message["channel"]
     user = message["user"]
+    #cache_ts(message["ts"])
 
-    #click.echo("Received message '{}' from '{}' in '{}'".format(text, user, channel))
-    print(event_data) # will change this back if click.echo wasn't the problem
+    print(event_data)
     if "hello" in text:
       send_message(channel, text="Hi <@%s>! :simple_smile:" % user)
-
-    if "@yelpchatbot" in text:
-      search(channel)
-
   return make_response("", 200)
 
-# handles when bots name is mentioned/called/tagged
+# handles when bots name is mentioned
 @slack_events_adapter.on("app_mention")
 def bot_inovked(event_data):
-    #print("BOT INVOKED")
     message = event_data["event"]
+    if not validate_timestamp(message["ts"]):
+    # the received message either has old timestamp or the same value as the current cached one
+        print("Received message too old!")
+        return make_response("", 200)
+    cache_ts(message["ts"])
+    
     if message.get("subtype") is None and not message.get("text") is None:
         text = message["text"]
         channel = message["channel"]
         user = message["user"]
-        if 'botsearch' in text:
+        if "botsearch" in text:
             search(channel)
+        else:
+            send_message(channel, text="What's up @<{0}>! :simple_smile:".format(user))
     return make_response("", 200)
+
+# timestamp caching function
+def cache_ts(ts):
+    #cache.update([('timestamp', ts)])
+    cache.set(key='timestamp',value=ts)
+    print("Cached:", ts)
+    return ts
   
+def get_ts():
+    ts = cache.get('timestamp')
+    if ts is None or ts is str(None):
+        return 0
+    return float(ts) # returns as an integer
+  
+def validate_timestamp(cur_ts):
+    cur_ts = float(cur_ts)
+    past = get_ts()
+    print('PAST:', past,'CURRENT:',cur_ts)
+    if cur_ts <= past:
+        return False
+    return True
+
 def cache_votes(user_id, vote):    
     votes = get_cached_votes()
     votes[user_id] = vote
@@ -110,8 +139,10 @@ def get_msg_attachments():
 # for simple messages, use send_message(channel, text="simple message")
 # for dict/formatted messages, use send_message(channel, **msg)
 def send_message(channel, **msg):
-  slack_client.api_call("chat.postMessage", channel=channel, **msg)
-
+  return slack_client.api_call("chat.postMessage", channel=channel, **msg)
+def update_message(channel, ts, **msg):
+  print("Trying to update at ts=", ts)
+  return slack_client.api_call("chat.update", channel=channel, ts=ts, **msg)
 def search(channel):
   search_results = yelp_api.search("lunch", "pittsburgh, pa", 3)
 
@@ -121,5 +152,7 @@ def search(channel):
     restaurant_id = res["id"]
     restaurants_arr.append(yelp_api.get_business(restaurant_id))
     reviews_arr.append(yelp_api.get_reviews(restaurant_id))
-
-  send_message(channel, **slack_format.build_vote_message(restaurants_arr, reviews_arr))
+  msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)
+  cache_msg_attachments(msg)
+  ret = send_message(channel, **msg)
+  cache_votes_ts(ret["ts"])
