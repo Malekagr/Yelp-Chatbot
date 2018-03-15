@@ -4,10 +4,12 @@ from slackclient import SlackClient
 from slackeventsapi import SlackEventAdapter
 from flask import Flask, make_response, Response, request
 from yelp import YelpAPI
+from flask_caching import Cache
 
 
 ##### SETUP
 app = Flask(__name__)
+cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 # import an environment variable as an app config option
 # throws KeyError
@@ -37,6 +39,10 @@ def message_actions():
 
   # Check to see what the user's selection was and update the message
   selection = form_json["actions"][0]["value"]
+  cache_votes(form_json["user"]["id"], selection)
+  
+  poll = Poll(,get_cached_votes())
+  
   message_text = "<@{0}> selected {1}".format(form_json["user"]["id"], selection)
 
   send_message(channel=form_json["channel"]["id"], text=message_text)
@@ -73,7 +79,30 @@ def bot_inovked(event_data):
         if 'botsearch' in text:
             search(channel)
     return make_response("", 200)
-
+  
+def cache_votes(user_id, vote):    
+    votes = get_cached_votes()
+    votes[user_id] = vote
+    cache.set(key='votes',value=votes)
+    
+def get_cached_votes():
+    if not cache.get("votes"):
+        # if votes hasn't been initialized
+        cache.set(key="votes",value={})
+    return cache.get("votes")
+  
+def cache_votes_ts(ts):
+    cache.set(key='votes_timestamp',value=ts)
+def get_votes_ts():
+    if not cache.get("votes_timestamp"):
+        cache.set(key="votes_timestamp",value=0)
+    return cache.get("votes_timestamp")
+def cache_msg_attachments(msg_attachments):
+    cache.set(key='msg_attachments',value=msg_attachments)
+def get_msg_attachments():
+    if not cache.get("msg_attachments"):
+        cache.set(key="msg_attachments",value={})
+    return cache.get("msg_attachments")
 ##### HELPERS
 
 # send a message to channel
