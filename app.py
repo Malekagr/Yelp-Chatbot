@@ -136,9 +136,10 @@ def get_cached_votes():
         cache.set(key="votes",value={})
     return cache.get("votes")
 
-@cache.cached(key_prefix="votes_timestamp")
 def cache_votes_ts(ts):
-    return ts
+    cache.delete("votes_timestamp")
+    cache.set("votes_timestamp", ts)
+
 def get_votes_ts():
     if not cache.get("votes_timestamp"):
         cache.set(key="votes_timestamp",value=0)
