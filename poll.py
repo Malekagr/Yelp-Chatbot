@@ -28,4 +28,18 @@ class Poll(object):
     
     def get_votes(self):
         return self._votes
-
+    
+    @staticmethod
+    def get_winner(user_votes={}):
+        winners = [k for k in user_votes.keys() if user_votes[k] == max(user_votes.values())]
+        r = random.randint(0, len(winners)-1)
+        return winners[r]
+    
+    @staticmethod
+    def spin_roulette(user_votes={}):
+        candidates = [[k]*user_votes[k] for k in user_votes.keys() if user_votes[k] > 0]
+        if len(candidates) == 0:
+            return "No one voted!"
+        candidates = [item for sublist in candidates for item in sublist] # flatten the list of lists
+        r = random.randint(0, len(candidates)-1)
+        return candidates[r]
