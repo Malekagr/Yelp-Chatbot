@@ -5,11 +5,11 @@ from slackeventsapi import SlackEventAdapter
 from flask import Flask, make_response, Response, request
 from yelp import YelpAPI
 from flask_caching import Cache
-from poll import Poll
+from poll import Poll, Finalize, ReRoll
 
 ##### SETUP
 app = Flask(__name__)
-cache = Cache(app, config={'CACHE_TYPE': 'simple','CACHE_DEFAULT_TIMEOUT': 1800})
+cache = Cache(app, config={'CACHE_TYPE': 'simple','CACHE_DEFAULT_TIMEOUT': 0}) # I heard 0 is the value for infinite
 
 # import an environment variable as an app config option
 # throws KeyError
@@ -30,26 +30,33 @@ yelp_api = YelpAPI(app.config["YELP_API_KEY"])
 
 @app.route("/", methods=["POST", "GET"])
 def hello():
+    #request.headers['X-Slack-No-Retry'] = 1
     return 'OK'
 
 ##### EVENT HANDLERS
 
-# handles button press events
+# handles button press events, where only the votes will be handled
+# and there can only exist one ongoing voting session (for now)
 @app.route("/slack/message_actions", methods=["POST"])
 def message_actions():
   # Parse the request payload
   form_json = json.loads(request.form["payload"])
-  #print(form_json)
-
-  # Check to see what the user's selection was and update the message
-  selection = form_json["actions"][0]["value"]
+   # Check to see what the user's selection was and update the message
+  user_id = form_json["user"]["id"]
+  channel_id = form_json["channel"]["id"]
+  callback_id = form_json["callback_id"]
+  selection = form_json["actions"][0]["value"] 
+  message_ts = form_json["message_ts"]
   
-  cache_votes(form_json["user"]["id"], selection)
-  poll = Poll(get_msg_attachments(), get_cached_votes())
-  update_message(form_json["channel"]["id"], ts=get_votes_ts(), **poll.get_updated_attachments())
+  if callback_id == "vote" and message_ts == get_votes_ts():
+    # this part handles vote buttons
+    cache_votes(user_id, selection)
+    poll = Poll(get_msg_attachments(), get_cached_votes())
+    update_message(channel_id, ts=get_votes_ts(), **poll.get_updated_attachments())
+    return make_response("", 200)
   
-  message_text = "<@{0}> selected {1}".format(form_json["user"]["id"], selection)
-  print(message_text)
+  #message_text = "<@{0}> selected {1}".format(user_id, selection)
+  #print(message_text)
   return make_response("", 200)
 
 # requires 'message' scope
@@ -63,7 +70,8 @@ def handle_message(event_data):
     user = message["user"]
     #cache_ts(message["ts"])
 
-    print(event_data)
+    #click.echo("Received message '{}' from '{}' in '{}'".format(text, user, channel))
+    print(event_data) # will change this back if click.echo wasn't the problem
     if "hello" in text:
       send_message(channel, text="Hi <@%s>! :simple_smile:" % user)
   return make_response("", 200)
@@ -71,6 +79,7 @@ def handle_message(event_data):
 # handles when bots name is mentioned
 @slack_events_adapter.on("app_mention")
 def bot_inovked(event_data):
+    #print("Cached ts:", cache.get('timestamp'))
     message = event_data["event"]
     if not validate_timestamp(message["ts"]):
     # the received message either has old timestamp or the same value as the current cached one
@@ -79,6 +88,8 @@ def bot_inovked(event_data):
     cache_ts(message["ts"])
     
     if message.get("subtype") is None and not message.get("text") is None:
+        #print("timestamp valid? ", validate_timestamp(message["ts"]))
+        
         text = message["text"]
         channel = message["channel"]
         user = message["user"]
@@ -88,7 +99,12 @@ def bot_inovked(event_data):
             send_message(channel, text="What's up <@{0}>! :simple_smile:".format(user))
     return make_response("", 200)
 
+  
+def remove_dot_from_ts(ts):
+    ts = str(ts)
+    return ts.split('.')[0] + ts.split('.')[1]
 # timestamp caching function
+#@cache.memoize(60)
 def cache_ts(ts):
     #cache.update([('timestamp', ts)])
     cache.set(key='timestamp',value=ts)
@@ -119,15 +135,18 @@ def get_cached_votes():
         # if votes hasn't been initialized
         cache.set(key="votes",value={})
     return cache.get("votes")
-  
+
+@cache.cached(key_prefix="votes_timestamp")
 def cache_votes_ts(ts):
-    cache.set(key='votes_timestamp',value=ts)
+    return ts
 def get_votes_ts():
     if not cache.get("votes_timestamp"):
         cache.set(key="votes_timestamp",value=0)
     return cache.get("votes_timestamp")
+  
+@cache.cached(key_prefix="msg_attachments")
 def cache_msg_attachments(msg_attachments):
-    cache.set(key='msg_attachments',value=msg_attachments)
+    return msg_attachments
 def get_msg_attachments():
     if not cache.get("msg_attachments"):
         cache.set(key="msg_attachments",value={})
