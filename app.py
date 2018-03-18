@@ -55,8 +55,11 @@ def message_actions():
     update_message(channel_id, ts=get_votes_ts(), **poll.get_updated_attachments())
     return make_response("", 200)
   
-  #message_text = "<@{0}> selected {1}".format(user_id, selection)
-  #print(message_text)
+  if callback_id == "invoker_controls":
+    message_text = "<@{0}> selected {1}".format(user_id, selection)
+    print(message_text)
+    slack_client.api_call("chat.postMessage", channel=channel_id, text=message_text)
+    
   return make_response("", 200)
 
 # requires 'message' scope
@@ -145,9 +148,10 @@ def get_votes_ts():
         cache.set(key="votes_timestamp",value=0)
     return cache.get("votes_timestamp")
   
-@cache.cached(key_prefix="msg_attachments")
 def cache_msg_attachments(msg_attachments):
-    return msg_attachments
+    cache.delete("msg_attachments")
+    cache.set("msg_attachments", msg_attachments)
+
 def get_msg_attachments():
     if not cache.get("msg_attachments"):
         cache.set(key="msg_attachments",value={})
@@ -160,11 +164,13 @@ def get_msg_attachments():
 # for dict/formatted messages, use send_message(channel, **msg)
 def send_message(channel, **msg):
   return slack_client.api_call("chat.postMessage", channel=channel, **msg)
+
 def update_message(channel, ts, **msg):
   print("Trying to update at ts=", ts)
   return slack_client.api_call("chat.update", channel=channel, ts=ts, **msg)
-def search(channel):
-  search_results = yelp_api.search("lunch", "pittsburgh, pa", 3)
+
+def search(channel, term="lunch", location="pittsburgh, pa", limit=3):
+  search_results = yelp_api.search(term, location, limit)
 
   restaurants_arr = []
   reviews_arr = []
@@ -174,5 +180,8 @@ def search(channel):
     reviews_arr.append(yelp_api.get_reviews(restaurant_id))
   msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)
   cache_msg_attachments(msg)
+  
+  slack_client.api_call("chat.delete", channel=channel, ts= get_votes_ts())
+
   ret = send_message(channel, **msg)
   cache_votes_ts(ret["ts"])
