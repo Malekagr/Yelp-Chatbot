@@ -75,7 +75,7 @@ def message_actions():
       # reroll votes
       pass
     elif selection == "cancel":
-      slack_client.api_call("chat.postMessage", channel=str(votes_channel_id), text="deleted")
+      slack_client.api_call("chat.postMessage", channel=str(votes_channel_id), text="Voting session canceled")
       slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
       pass
     
