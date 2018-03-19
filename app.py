@@ -89,7 +89,9 @@ def handle_message(event_data):
     text = message["text"]
     channel = message["channel"]
     user = message["user"]
+
     print(event_data)
+
   return make_response("", 200)
 
 # handles when bots name is mentioned
@@ -108,11 +110,11 @@ def bot_invoked(event_data):
         text = message["text"]
         channel = message["channel"]
         user = message["user"]
+
         search(channel)
         
         ret = send_invoker_options(user, channel, slack_client)
         cache_invoker_info(user, channel, ret["message_ts"])        
-
     return make_response("", 200)
 
 def cache_ts(ts):
