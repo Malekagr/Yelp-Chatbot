@@ -1,5 +1,5 @@
 invoker_options={
-    "title": 'Control Panel',
+    "title": 'Choose an option for this voting session:',
     "callback_id": 'invoker_controls',
     "actions": [{
             "name": 'Reroll',
