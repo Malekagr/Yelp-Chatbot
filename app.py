@@ -66,17 +66,19 @@ def message_actions():
     if selection == "finalize":
       # finalize votes
       cache_invoker_info(str(None), str(None), -1) # reset invoker info
+      cache.delete("user_votes")
       conclusion = Finalize.conclude(get_cached_votes())
       slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
       slack_client.api_call("chat.postMessage", channel=str(invoked_channel), text=conclusion)
-      
+
     elif selection == "reroll":
       # reroll votes
       pass
     elif selection == "cancel":
+      cache_invoker_info(str(None), str(None), -1) # reset invoker info
+      cache.delete("user_votes")
       slack_client.api_call("chat.postMessage", channel=str(votes_channel_id), text="Voting session canceled")
       slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
-      pass
     
   return make_response("", 200)
 
