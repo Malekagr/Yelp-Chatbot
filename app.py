@@ -11,7 +11,6 @@ from Invoker_Options import send_invoker_options
 ##### SETUP
 app = Flask(__name__)
 cache = Cache(app, config={'CACHE_TYPE': 'simple','CACHE_DEFAULT_TIMEOUT': 0}) # I heard 0 is the value for infinite
-cache.set("invoked_ts", -1)
 
 # import an environment variable as an app config option
 # throws KeyError
@@ -90,32 +89,38 @@ def handle_message(event_data):
     text = message["text"]
     channel = message["channel"]
     user = message["user"]
-
     print(event_data)
-
   return make_response("", 200)
 
 # handles when bots name is mentioned
 @slack_events_adapter.on("app_mention")
 def bot_invoked(event_data):
     #print("Cached ts:", cache.get('timestamp'))
-    print("called")
+    #print("called")
     message = event_data["event"]
+    invoker_id, invoked_channel, invoked_ts = get_invoker_info()
+    if invoked_ts != None and float(invoked_ts) > 0:
+        print("There is an ongoing poll")
+        slack_client.api_call("chat.postMessage", channel=str(invoked_channel), text="I'm busy right now, call me once the current poll is finished.")
+        return make_response("", 200)
+    elif invoked_ts != None and float(invoked_ts) == 0:
+        print("retrieve cache error")
+    
     if not validate_timestamp(message["ts"]):
     # the received message either has old timestamp or the same value as the current cached one
         print("Received message too old!")
         return make_response("", 200)
     cache_ts(message["ts"])
     
-    if message.get("subtype") is None and not message.get("text") is None and cache.get("invoked_ts") == -1:        
+    if message.get("subtype") is None and not message.get("text") is None:        
         text = message["text"]
         channel = message["channel"]
         user = message["user"]
-
         search(channel)
         
         ret = send_invoker_options(user, channel, slack_client)
         cache_invoker_info(user, channel, ret["message_ts"])        
+
     return make_response("", 200)
 
 def cache_ts(ts):
@@ -199,9 +204,9 @@ def search(channel, term="lunch", location="pittsburgh, pa", limit=3):
   msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)
   
   votes_ts, votes_channel_id = get_votes_info()  
-  invoker_id, invoked_channel, invoked_ts = get_invoker_info()
+  
   cache_msg_attachments(msg)  
-  slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
+  #slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
   # ephemeral messages cannot be deleted (by the bot at least) will use the invoker id to check when someone
   # wants to finalize/reroll/cancel the voting session
   # print(slack_client.api_call("chat.delete", channel=str(invoked_channel), ts=invoked_ts)) 
