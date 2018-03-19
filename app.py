@@ -51,6 +51,12 @@ def message_actions():
   votes_ts, votes_channel_id = get_votes_info()
   invoker_id, invoked_channel, invoked_ts = get_invoker_info()
   
+  if not validate_timestamp(message_ts):
+  # the received message either has old timestamp or the same value as the current cached one
+    print("Received message too old!")
+    return make_response("", 200)
+  cache_ts(message_ts)
+  
   if callback_id == "vote" and message_ts == votes_ts:
     # this part handles vote buttons
     cache_votes(user_id, selection)
@@ -60,7 +66,8 @@ def message_actions():
   
   elif callback_id == "invoker_controls":
     if user_id != invoker_id:
-      slack_client.api_call("chat.postEphemeral", channel=channel_id, text="Only the poll creator can make changes to the poll.", user=user_id)
+      #slack_client.api_call("chat.postEphemeral", channel=channel_id, text="Only the poll creator can make changes to the poll.", user=user_id)
+      print("Invoker:", invoker_id, "user:", user_id)
       return make_response("", 200)
     if selection == "finalize":
       # finalize votes
