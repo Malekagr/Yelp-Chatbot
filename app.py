@@ -10,7 +10,7 @@ from Invoker_Options import send_invoker_options
 
 ##### SETUP
 app = Flask(__name__)
-cache = Cache(app, config={'CACHE_TYPE': 'simple','CACHE_DEFAULT_TIMEOUT': 0}) # I heard 0 is the value for infinite
+cache = Cache(app, config={'CACHE_TYPE': 'simple','CACHE_DEFAULT_TIMEOUT': 922337203685477580})
 
 # import an environment variable as an app config option
 # throws KeyError
@@ -63,11 +63,16 @@ def message_actions():
       #slack_client.api_call("chat.postEphemeral", channel=channel_id, text="Only the poll creator can make changes to the poll.", user=user_id)
       print("Invoker:", invoker_id, "user:", user_id)
       return make_response("", 200)
+    
     if selection == "finalize":
       # finalize votes
-      cache_invoker_info(str(None), str(None), -1) # reset invoker info
-      cache.delete("user_votes")
       conclusion = Finalize.conclude(get_cached_votes())
+      
+      cache_invoker_info(str(None), str(None), -1) # reset invoker info
+      while cache.get("user_votes") != None:
+        cache.set("user_votes", None)
+      print("user_votes=", get_cached_votes())
+      
       slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
       slack_client.api_call("chat.postMessage", channel=str(invoked_channel), text=conclusion)
 
@@ -76,7 +81,9 @@ def message_actions():
       pass
     elif selection == "cancel":
       cache_invoker_info(str(None), str(None), -1) # reset invoker info
-      cache.delete("user_votes")
+      while cache.get("user_votes") != None:
+        cache.set("user_votes", None)
+      print("user_votes=", get_cached_votes())
       slack_client.api_call("chat.postMessage", channel=str(votes_channel_id), text="Voting session canceled")
       slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
     
@@ -147,13 +154,13 @@ def validate_timestamp(cur_ts):
 def cache_votes(user_id, vote):    
     votes = get_cached_votes()
     votes[user_id] = vote
-    cache.set(key='votes',value=votes)
+    cache.set(key='user_votes',value=votes)
     
 def get_cached_votes():
-    if not cache.get("votes"):
+    if not cache.get("user_votes"):
         # if votes hasn't been initialized
-        cache.set(key="votes",value={})
-    return cache.get("votes")
+        cache.set(key="user_votes",value={})
+    return cache.get("user_votes")
 
 def cache_votes_info(ts, channel):
     cache.set("votes_timestamp", ts)
