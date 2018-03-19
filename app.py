@@ -49,6 +49,7 @@ def message_actions():
   selection = form_json["actions"][0]["value"] 
   message_ts = form_json["message_ts"]
   votes_ts, votes_channel_id = get_votes_info()
+  invoker_id, invoked_channel, invoked_ts = get_invoker_info()
   
   if callback_id == "vote" and message_ts == votes_ts:
     # this part handles vote buttons
@@ -58,9 +59,15 @@ def message_actions():
     update_message(votes_channel_id, ts=votes_ts, **poll.get_updated_attachments())
   
   elif callback_id == "invoker_controls":
-    message_text = "<@{0}> selected {1}".format(user_id, selection)
-    print(message_text)
-    slack_client.api_call("chat.postMessage", channel=channel_id, text=message_text)
+    if user_id != invoker_id:
+      slack_client.api_call("chat.postEphemeral", channel=channel_id, text="Only the poll creator can make changes to the poll.", user=user_id)
+      return make_response("", 200)
+    if selection == "finalize":
+      # finalize votes
+    elif selection == "reroll":
+      # reroll votes
+    elif selection == "cancel":
+      # cancel votes
     
   return make_response("", 200)
 
