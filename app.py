@@ -51,12 +51,6 @@ def message_actions():
   votes_ts, votes_channel_id = get_votes_info()
   invoker_id, invoked_channel, invoked_ts = get_invoker_info()
   
-  if not validate_timestamp(message_ts):
-  # the received message either has old timestamp or the same value as the current cached one
-    print("Received message too old!")
-    return make_response("", 200)
-  cache_ts(message_ts)
-  
   if callback_id == "vote" and message_ts == votes_ts:
     # this part handles vote buttons
     cache_votes(user_id, selection)
