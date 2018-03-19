@@ -55,8 +55,9 @@ def handle_message(event_data):
     print(event_data) # will change this back if click.echo wasn't the problem
     if "hello" in text:
       send_message(channel, text="Hi <@%s>! :simple_smile:" % user)
-
-    if "@yelpchatbot" in text:
+      #User can invoke the chatbot by typing
+      #@Yelp Chatbot
+    if "@Yelp Chatbot" in text:
       search(channel)
 
   return make_response("", 200)
@@ -70,8 +71,10 @@ def bot_inovked(event_data):
         text = message["text"]
         channel = message["channel"]
         user = message["user"]
-        if 'botsearch' in text:
-            search(channel)
+        #botsearch is no longer a valid
+        #means to invoke the chatbot
+        #if 'botsearch' in text:
+        #    search(channel)
     return make_response("", 200)
 
 ##### HELPERS
