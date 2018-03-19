@@ -11,6 +11,7 @@ from Invoker_Options import send_invoker_options
 ##### SETUP
 app = Flask(__name__)
 cache = Cache(app, config={'CACHE_TYPE': 'simple','CACHE_DEFAULT_TIMEOUT': 0}) # I heard 0 is the value for infinite
+cache.set("invoked_ts", -1)
 
 # import an environment variable as an app config option
 # throws KeyError
@@ -65,7 +66,11 @@ def message_actions():
       return make_response("", 200)
     if selection == "finalize":
       # finalize votes
-      pass
+      cache_invoker_info(str(None), str(None), -1) # reset invoker info
+      conclusion = Finalize.conclude(get_cached_votes())
+      slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
+      slack_client.api_call("chat.postMessage", channel=str(invoked_channel), text=conclusion)
+      
     elif selection == "reroll":
       # reroll votes
       pass
@@ -99,7 +104,7 @@ def bot_invoked(event_data):
         return make_response("", 200)
     cache_ts(message["ts"])
     
-    if message.get("subtype") is None and not message.get("text") is None:        
+    if message.get("subtype") is None and not message.get("text") is None and cache.get("invoked_ts") == -1:        
         text = message["text"]
         channel = message["channel"]
         user = message["user"]
