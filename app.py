@@ -91,6 +91,7 @@ def handle_message(event_data):
 @slack_events_adapter.on("app_mention")
 def bot_invoked(event_data):
     #print("Cached ts:", cache.get('timestamp'))
+    print("called")
     message = event_data["event"]
     if not validate_timestamp(message["ts"]):
     # the received message either has old timestamp or the same value as the current cached one
@@ -161,7 +162,9 @@ def cache_invoker_info(invoker_id, invoked_channel, invoked_ts):
     cache.set("invoker_id", invoker_id)
     cache.set("invoked_channel", invoked_channel)
     cache.set("invoked_ts", invoked_ts)
+    print("Cached Invoker id:",cache.get("invoker_id"),"channel:",cache.get("invoked_channel"),"ts:",cache.get("invoked_ts"))
 def get_invoker_info():
+    print("Getting Invoker id:",cache.get("invoker_id"),"channel:",cache.get("invoked_channel"),"ts:",cache.get("invoked_ts"))
     return cache.get("invoker_id"), cache.get("invoked_channel"), cache.get("invoked_ts")
 ##### HELPERS
 
