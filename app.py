@@ -6,6 +6,7 @@ from flask import Flask, make_response, Response, request
 from yelp import YelpAPI
 from flask_caching import Cache
 from poll import Poll, Finalize, ReRoll
+from Invoker_Options import send_invoker_options
 
 ##### SETUP
 app = Flask(__name__)
@@ -47,15 +48,16 @@ def message_actions():
   callback_id = form_json["callback_id"]
   selection = form_json["actions"][0]["value"] 
   message_ts = form_json["message_ts"]
+  votes_ts, votes_channel_id = get_votes_info()
   
-  if callback_id == "vote" and message_ts == get_votes_ts():
+  if callback_id == "vote" and message_ts == votes_ts:
     # this part handles vote buttons
     cache_votes(user_id, selection)
+    
     poll = Poll(get_msg_attachments(), get_cached_votes())
-    update_message(channel_id, ts=get_votes_ts(), **poll.get_updated_attachments())
-    return make_response("", 200)
+    update_message(votes_channel_id, ts=votes_ts, **poll.get_updated_attachments())
   
-  if callback_id == "invoker_controls":
+  elif callback_id == "invoker_controls":
     message_text = "<@{0}> selected {1}".format(user_id, selection)
     print(message_text)
     slack_client.api_call("chat.postMessage", channel=channel_id, text=message_text)
@@ -71,17 +73,12 @@ def handle_message(event_data):
     text = message["text"]
     channel = message["channel"]
     user = message["user"]
-    #cache_ts(message["ts"])
-
-    #click.echo("Received message '{}' from '{}' in '{}'".format(text, user, channel))
-    print(event_data) # will change this back if click.echo wasn't the problem
-    if "hello" in text:
-      send_message(channel, text="Hi <@%s>! :simple_smile:" % user)
+    print(event_data)
   return make_response("", 200)
 
 # handles when bots name is mentioned
 @slack_events_adapter.on("app_mention")
-def bot_inovked(event_data):
+def bot_invoked(event_data):
     #print("Cached ts:", cache.get('timestamp'))
     message = event_data["event"]
     if not validate_timestamp(message["ts"]):
@@ -90,28 +87,20 @@ def bot_inovked(event_data):
         return make_response("", 200)
     cache_ts(message["ts"])
     
-    if message.get("subtype") is None and not message.get("text") is None:
-        #print("timestamp valid? ", validate_timestamp(message["ts"]))
-        
+    if message.get("subtype") is None and not message.get("text") is None:        
         text = message["text"]
         channel = message["channel"]
         user = message["user"]
-        if "botsearch" in text:
-            search(channel)
-        else:
-            send_message(channel, text="What's up <@{0}>! :simple_smile:".format(user))
+        search(channel)
+        
+        ret = send_invoker_options(user, channel, slack_client)
+        cache_invoker_info(user, channel, ret["message_ts"])        
+
     return make_response("", 200)
 
-  
-def remove_dot_from_ts(ts):
-    ts = str(ts)
-    return ts.split('.')[0] + ts.split('.')[1]
-# timestamp caching function
-#@cache.memoize(60)
 def cache_ts(ts):
-    #cache.update([('timestamp', ts)])
     cache.set(key='timestamp',value=ts)
-    print("Cached:", ts)
+    #print("Cached:", ts)
     return ts
   
 def get_ts():
@@ -139,14 +128,14 @@ def get_cached_votes():
         cache.set(key="votes",value={})
     return cache.get("votes")
 
-def cache_votes_ts(ts):
-    cache.delete("votes_timestamp")
+def cache_votes_info(ts, channel):
     cache.set("votes_timestamp", ts)
+    cache.set("votes_channel", channel)
 
-def get_votes_ts():
+def get_votes_info():
     if not cache.get("votes_timestamp"):
         cache.set(key="votes_timestamp",value=0)
-    return cache.get("votes_timestamp")
+    return cache.get("votes_timestamp"), cache.get("votes_channel")
   
 def cache_msg_attachments(msg_attachments):
     cache.delete("msg_attachments")
@@ -156,6 +145,13 @@ def get_msg_attachments():
     if not cache.get("msg_attachments"):
         cache.set(key="msg_attachments",value={})
     return cache.get("msg_attachments")
+  
+def cache_invoker_info(invoker_id, invoked_channel, invoked_ts):
+    cache.set("invoker_id", invoker_id)
+    cache.set("invoked_channel", invoked_channel)
+    cache.set("invoked_ts", invoked_ts)
+def get_invoker_info():
+    return cache.get("invoker_id"), cache.get("invoked_channel"), cache.get("invoked_ts")
 ##### HELPERS
 
 # send a message to channel
@@ -179,9 +175,14 @@ def search(channel, term="lunch", location="pittsburgh, pa", limit=3):
     restaurants_arr.append(yelp_api.get_business(restaurant_id))
     reviews_arr.append(yelp_api.get_reviews(restaurant_id))
   msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)
-  cache_msg_attachments(msg)
   
-  slack_client.api_call("chat.delete", channel=channel, ts= get_votes_ts())
+  votes_ts, votes_channel_id = get_votes_info()  
+  invoker_id, invoked_channel, invoked_ts = get_invoker_info()
+  cache_msg_attachments(msg)  
+  slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
+  # ephemeral messages cannot be deleted (by the bot at least) will use the invoker id to check when someone
+  # wants to finalize/reroll/cancel the voting session
+  # print(slack_client.api_call("chat.delete", channel=str(invoked_channel), ts=invoked_ts)) 
 
   ret = send_message(channel, **msg)
-  cache_votes_ts(ret["ts"])
+  cache_votes_info(ret["ts"], ret["channel"])
