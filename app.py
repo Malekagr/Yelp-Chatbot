@@ -64,10 +64,13 @@ def message_actions():
       return make_response("", 200)
     if selection == "finalize":
       # finalize votes
+      pass
     elif selection == "reroll":
       # reroll votes
+      pass
     elif selection == "cancel":
       # cancel votes
+      pass
     
   return make_response("", 200)
 
