@@ -45,7 +45,7 @@ class Poll(object):
         votes = Poll.get_restaurant_votes(user_votes)
         total = sum(votes.values())
         for k, v in votes.items():
-            votes[k] = v * 1.0 / total
+            votes[k] = round(v * 1.0 / total, 2)
         return votes
     
     @staticmethod
