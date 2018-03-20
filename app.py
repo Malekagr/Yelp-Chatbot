@@ -15,15 +15,15 @@ cache = Cache(app, config={'CACHE_TYPE': 'simple','CACHE_DEFAULT_TIMEOUT': 92233
 # import an environment variable as an app config option
 # throws KeyError
 def import_env_var(app, env_var):
-  app.config[env_var] = os.environ[env_var]
+    app.config[env_var] = os.environ[env_var]
 
 try:
-  import_env_var(app, "SLACK_BOT_TOKEN")
-  import_env_var(app, "SLACK_VERIFICATION_TOKEN")
-  import_env_var(app, "YELP_API_KEY")
+    import_env_var(app, "SLACK_BOT_TOKEN")
+    import_env_var(app, "SLACK_VERIFICATION_TOKEN")
+    import_env_var(app, "YELP_API_KEY")
 except KeyError:
-  click.echo("Could not load environment variables")
-  sys.exit()
+    click.echo("Could not load environment variables")
+    sys.exit()
 
 slack_client = SlackClient(app.config["SLACK_BOT_TOKEN"])
 slack_events_adapter = SlackEventAdapter(app.config["SLACK_VERIFICATION_TOKEN"], endpoint="/slack/events", server=app)
@@ -40,62 +40,62 @@ def hello():
 # and there can only exist one ongoing voting session (for now)
 @app.route("/slack/message_actions", methods=["POST"])
 def message_actions():
-  # Parse the request payload
-  form_json = json.loads(request.form["payload"])
-   # Check to see what the user's selection was and update the message
-  user_id = form_json["user"]["id"]
-  channel_id = form_json["channel"]["id"]
-  callback_id = form_json["callback_id"]
-  selection = form_json["actions"][0]["value"] 
-  message_ts = form_json["message_ts"]
-  votes_ts, votes_channel_id = get_votes_info()
-  invoker_id, invoked_channel, invoked_ts = get_invoker_info()
+    # Parse the request payload
+    form_json = json.loads(request.form["payload"])
+    # Check to see what the user's selection was and update the message
+    user_id = form_json["user"]["id"]
+    channel_id = form_json["channel"]["id"]
+    callback_id = form_json["callback_id"]
+    selection = form_json["actions"][0]["value"] 
+    message_ts = form_json["message_ts"]
+    votes_ts, votes_channel_id = get_votes_info()
+    invoker_id, invoked_channel, invoked_ts = get_invoker_info()
   
-  if callback_id == "vote" and message_ts == votes_ts:
-    # this part handles vote buttons
-    cache_votes(user_id, selection)
+    if callback_id == "vote" and message_ts == votes_ts:
+        # this part handles vote buttons
+        cache_votes(user_id, selection)
     
-    poll = Poll(get_msg_attachments(), get_cached_votes())
-    print("Votes Info:", "channel=", votes_channel_id, "ts=", votes_ts, "votes=", poll.get_votes())
-    update_message(votes_channel_id, ts=votes_ts, **poll.get_updated_attachments())
+        poll = Poll(get_msg_attachments(), get_cached_votes())
+        print("Votes Info:", "channel=", votes_channel_id, "ts=", votes_ts, "votes=", poll.get_votes())
+        update_message(votes_channel_id, ts=votes_ts, **poll.get_updated_attachments())
   
   elif callback_id == "invoker_controls":
-    if user_id != invoker_id:
-      #slack_client.api_call("chat.postEphemeral", channel=channel_id, text="Only the poll creator can make changes to the poll.", user=user_id)
-      print("Invoker:", invoker_id, "user:", user_id)
-      return make_response("", 200)
+      if user_id != invoker_id:
+          #slack_client.api_call("chat.postEphemeral", channel=channel_id, text="Only the poll creator can make changes to the poll.", user=user_id)
+          print("Invoker:", invoker_id, "user:", user_id)
+          return make_response("", 200)
     
-    if selection == "finalize":
-      # finalize votes
-      conclusion = Finalize.conclude(get_cached_votes())
+      if selection == "finalize":
+          # finalize votes
+          conclusion = Finalize.conclude(get_cached_votes())
       
-      cache_invoker_info(str(None), str(None), -1) # reset invoker info
-      cache.delete("user_votes")
-      print("user_votes=", get_cached_votes())
+          cache_invoker_info(str(None), str(None), -1) # reset invoker info
+          cache.delete("user_votes")
+          print("user_votes=", get_cached_votes())
       
-      slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
-      slack_client.api_call("chat.postMessage", channel=str(invoked_channel), text=conclusion)
+          slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
+          slack_client.api_call("chat.postMessage", channel=str(invoked_channel), text=conclusion)
 
-    elif selection == "reroll":
-      # reroll votes
-      business_ids = get_business_ids()
-      if len(business_ids) < 3 and len(business_ids) > 0:
-        list_of_ids = business_ids
-        cache_business_ids([])
+      elif selection == "reroll":
+          # reroll votes
+          business_ids = get_business_ids()
+          if len(business_ids) < 3 and len(business_ids) > 0:
+              list_of_ids = business_ids
+              cache_business_ids([])
       elif len(business_ids) <= 0:
-        print("out of ids")
-        # don't make any modification to the current poll
-        return make_response("", 200)
+          print("out of ids")
+          # don't make any modification to the current poll
+          return make_response("", 200)
       else:
-        # when there are more than 3 ids left
-        list_of_ids, business_ids = ReRoll(business_ids).reroll()  
-        cache_business_ids(business_ids)
+          # when there are more than 3 ids left
+          list_of_ids, business_ids = ReRoll(business_ids).reroll()  
+          cache_business_ids(business_ids)
         
       restaurants_arr = []
       reviews_arr = []
       for restaurant_id in list_of_ids:
-        restaurants_arr.append(yelp_api.get_business(restaurant_id))
-        reviews_arr.append(yelp_api.get_reviews(restaurant_id))
+          restaurants_arr.append(yelp_api.get_business(restaurant_id))
+          reviews_arr.append(yelp_api.get_reviews(restaurant_id))
       msg = slack_format.build_vote_message(restaurants_arr, reviews_arr) 
   
       cache_msg_attachments(msg)
@@ -103,26 +103,26 @@ def message_actions():
       cache_votes_info(ret["ts"], ret["channel"])
         
     elif selection == "cancel":
-      # cancel voting session
-      cache_invoker_info(str(None), str(None), -1) # reset invoker info
-      cache.delete("user_votes")
-      print("user_votes=", get_cached_votes())
-      slack_client.api_call("chat.postMessage", channel=str(votes_channel_id), text="Voting session canceled")
-      slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
+        # cancel voting session
+        cache_invoker_info(str(None), str(None), -1) # reset invoker info
+        cache.delete("user_votes")
+        print("user_votes=", get_cached_votes())
+        slack_client.api_call("chat.postMessage", channel=str(votes_channel_id), text="Voting session canceled")
+        slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
     
-  return make_response("", 200)
+    return make_response("", 200)
 
 # requires 'message' scope
 @slack_events_adapter.on("message")
 def handle_message(event_data):
-  message = event_data["event"]
-  if message.get("subtype") is None and not message.get("text") is None:
-    #ts = get_ts()
-    text = message["text"]
-    channel = message["channel"]
-    user = message["user"]
-    print(event_data)
-  return make_response("", 200)
+    message = event_data["event"]
+    if message.get("subtype") is None and not message.get("text") is None:
+      #ts = get_ts()
+      text = message["text"]
+      channel = message["channel"]
+      user = message["user"]
+      print(event_data)
+    return make_response("", 200)
 
 # handles when bots name is mentioned
 @slack_events_adapter.on("app_mention")
@@ -223,29 +223,29 @@ def get_business_ids():
 # for simple messages, use send_message(channel, text="simple message")
 # for dict/formatted messages, use send_message(channel, **msg)
 def send_message(channel, **msg):
-  return slack_client.api_call("chat.postMessage", channel=channel, **msg)
+    return slack_client.api_call("chat.postMessage", channel=channel, **msg)
 
 def update_message(channel, ts, **msg):
-  #print("Trying to update at ts=", ts)
-  return slack_client.api_call("chat.update", channel=channel, ts=ts, **msg)
+    #print("Trying to update at ts=", ts)
+    return slack_client.api_call("chat.update", channel=channel, ts=ts, **msg)
 
 def search(channel, term="lunch", location="pittsburgh, pa"):
-  business_ids = get_business_ids()
-  if not business_ids:
-    limit = 50      # 50 is the maximum we can request for
-    search_results = yelp_api.search(term, location, limit)
-    business_ids = [res["id"] for res in search_results["businesses"]]
+    business_ids = get_business_ids()
+    if not business_ids:
+        limit = 50      # 50 is the maximum we can request for
+        search_results = yelp_api.search(term, location, limit)
+        business_ids = [res["id"] for res in search_results["businesses"]]
     
-  partial_ids, business_ids = ReRoll(business_ids).reroll()  
-  cache_business_ids(business_ids)
+    partial_ids, business_ids = ReRoll(business_ids).reroll()  
+    cache_business_ids(business_ids)
     
-  restaurants_arr = []
-  reviews_arr = []
-  for restaurant_id in partial_ids:
-    restaurants_arr.append(yelp_api.get_business(restaurant_id))
-    reviews_arr.append(yelp_api.get_reviews(restaurant_id))
-  msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)  
+    restaurants_arr = []
+    reviews_arr = []
+    for restaurant_id in partial_ids:
+        restaurants_arr.append(yelp_api.get_business(restaurant_id))
+        reviews_arr.append(yelp_api.get_reviews(restaurant_id))
+    msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)  
   
-  cache_msg_attachments(msg)  
-  ret = send_message(channel, **msg)
-  cache_votes_info(ret["ts"], ret["channel"])
+    cache_msg_attachments(msg)  
+    ret = send_message(channel, **msg)
+    cache_votes_info(ret["ts"], ret["channel"])
