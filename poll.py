@@ -88,7 +88,7 @@ class ReRoll(object):
         random.shuffle(self._id_list)
         
     def _get_rolls(self):
-        # self.shuffle()
+        self.shuffle()
         new_rolls = []
         if len(self._id_list) >= 3:
             new_rolls = self._id_list[0:3]
