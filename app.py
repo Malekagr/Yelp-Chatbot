@@ -56,7 +56,7 @@ def message_actions():
     cache_votes(user_id, selection)
     
     poll = Poll(get_msg_attachments(), get_cached_votes())
-    print("Votes Info:", "channel=", votes_channel_id, "ts=", votes_ts)
+    print("Votes Info:", "channel=", votes_channel_id, "ts=", votes_ts, "votes=", poll.get_votes())
     update_message(votes_channel_id, ts=votes_ts, **poll.get_updated_attachments())
   
   elif callback_id == "invoker_controls":
