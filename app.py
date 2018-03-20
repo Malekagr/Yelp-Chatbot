@@ -10,7 +10,8 @@ from Invoker_Options import send_invoker_options
 
 ##### SETUP
 app = Flask(__name__)
-cache = Cache(app, config={'CACHE_TYPE': 'simple','CACHE_DEFAULT_TIMEOUT': 922337203685477580})
+# timeout 0 = infinte timeout
+cache = Cache(app, config={'CACHE_TYPE': 'simple','CACHE_DEFAULT_TIMEOUT': 0})
 
 # import an environment variable as an app config option
 # throws KeyError
@@ -59,48 +60,47 @@ def message_actions():
         print("Votes Info:", "channel=", votes_channel_id, "ts=", votes_ts, "votes=", poll.get_votes())
         update_message(votes_channel_id, ts=votes_ts, **poll.get_updated_attachments())
   
-  elif callback_id == "invoker_controls":
-      if user_id != invoker_id:
-          #slack_client.api_call("chat.postEphemeral", channel=channel_id, text="Only the poll creator can make changes to the poll.", user=user_id)
-          print("Invoker:", invoker_id, "user:", user_id)
-          return make_response("", 200)
+    elif callback_id == "invoker_controls":
+        if user_id != invoker_id:
+            print("Invoker:", invoker_id, "user:", user_id)
+            return make_response("", 200)
     
-      if selection == "finalize":
+        if selection == "finalize":
           # finalize votes
-          conclusion = Finalize.conclude(get_cached_votes())
+            conclusion = Finalize.conclude(get_cached_votes())
       
-          cache_invoker_info(str(None), str(None), -1) # reset invoker info
-          cache.delete("user_votes")
-          print("user_votes=", get_cached_votes())
+            cache_invoker_info(str(None), str(None), -1) # reset invoker info
+            cache.delete("user_votes")
+            print("user_votes=", get_cached_votes())
       
-          slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
-          slack_client.api_call("chat.postMessage", channel=str(invoked_channel), text=conclusion)
+            slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
+            slack_client.api_call("chat.postMessage", channel=str(invoked_channel), text=conclusion)
 
-      elif selection == "reroll":
+        elif selection == "reroll":
           # reroll votes
-          business_ids = get_business_ids()
-          if len(business_ids) < 3 and len(business_ids) > 0:
-              list_of_ids = business_ids
-              cache_business_ids([])
-      elif len(business_ids) <= 0:
-          print("out of ids")
-          # don't make any modification to the current poll
-          return make_response("", 200)
-      else:
-          # when there are more than 3 ids left
-          list_of_ids, business_ids = ReRoll(business_ids).reroll()  
-          cache_business_ids(business_ids)
+            business_ids = get_business_ids()
+            if len(business_ids) < 3 and len(business_ids) > 0:
+                list_of_ids = business_ids
+                cache_business_ids([])
+        elif len(business_ids) <= 0:
+            print("out of ids")
+            # don't make any modification to the current poll
+            return make_response("", 200)
+        else:
+            # when there are more than 3 ids left
+            list_of_ids, business_ids = ReRoll(business_ids).reroll()  
+            cache_business_ids(business_ids)
         
-      restaurants_arr = []
-      reviews_arr = []
-      for restaurant_id in list_of_ids:
-          restaurants_arr.append(yelp_api.get_business(restaurant_id))
-          reviews_arr.append(yelp_api.get_reviews(restaurant_id))
-      msg = slack_format.build_vote_message(restaurants_arr, reviews_arr) 
+        restaurants_arr = []
+        reviews_arr = []
+        for restaurant_id in list_of_ids:
+            restaurants_arr.append(yelp_api.get_business(restaurant_id))
+            reviews_arr.append(yelp_api.get_reviews(restaurant_id))
+        msg = slack_format.build_vote_message(restaurants_arr, reviews_arr) 
   
-      cache_msg_attachments(msg)
-      ret = update_message(votes_channel_id, votes_ts, **msg)
-      cache_votes_info(ret["ts"], ret["channel"])
+        cache_msg_attachments(msg)
+        ret = update_message(votes_channel_id, votes_ts, **msg)
+        cache_votes_info(ret["ts"], ret["channel"])
         
     elif selection == "cancel":
         # cancel voting session
@@ -117,11 +117,11 @@ def message_actions():
 def handle_message(event_data):
     message = event_data["event"]
     if message.get("subtype") is None and not message.get("text") is None:
-      #ts = get_ts()
-      text = message["text"]
-      channel = message["channel"]
-      user = message["user"]
-      print(event_data)
+        #ts = get_ts()
+        text = message["text"]
+        channel = message["channel"]
+        user = message["user"]
+        print(event_data)
     return make_response("", 200)
 
 # handles when bots name is mentioned
