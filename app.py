@@ -90,16 +90,16 @@ def message_actions():
                 list_of_ids, business_ids = ReRoll(business_ids).reroll()  
                 cache_business_ids(business_ids)
         
-        restaurants_arr = []
-        reviews_arr = []
-        for restaurant_id in list_of_ids:
-            restaurants_arr.append(yelp_api.get_business(restaurant_id))
-            reviews_arr.append(yelp_api.get_reviews(restaurant_id))
-        msg = slack_format.build_vote_message(restaurants_arr, reviews_arr) 
+            restaurants_arr = []
+            reviews_arr = []
+            for restaurant_id in list_of_ids:
+                restaurants_arr.append(yelp_api.get_business(restaurant_id))
+                reviews_arr.append(yelp_api.get_reviews(restaurant_id))
+            msg = slack_format.build_vote_message(restaurants_arr, reviews_arr) 
   
-        cache_msg_attachments(msg)
-        ret = update_message(votes_channel_id, votes_ts, **msg)
-        cache_votes_info(ret["ts"], ret["channel"])
+            cache_msg_attachments(msg)
+            ret = update_message(votes_channel_id, votes_ts, **msg)
+            cache_votes_info(ret["ts"], ret["channel"])
         
     elif selection == "cancel":
         # cancel voting session
