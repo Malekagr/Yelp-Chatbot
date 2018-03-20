@@ -56,6 +56,7 @@ def message_actions():
     cache_votes(user_id, selection)
     
     poll = Poll(get_msg_attachments(), get_cached_votes())
+    print("Votes Info:", "channel=", votes_channel_id, "ts=", votes_ts)
     update_message(votes_channel_id, ts=votes_ts, **poll.get_updated_attachments())
   
   elif callback_id == "invoker_controls":
@@ -69,8 +70,7 @@ def message_actions():
       conclusion = Finalize.conclude(get_cached_votes())
       
       cache_invoker_info(str(None), str(None), -1) # reset invoker info
-      while cache.get("user_votes") != None:
-        cache.set("user_votes", None)
+      cache.delete("user_votes")
       print("user_votes=", get_cached_votes())
       
       slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
@@ -78,11 +78,34 @@ def message_actions():
 
     elif selection == "reroll":
       # reroll votes
-      pass
+      business_ids = get_business_ids()
+      if len(business_ids) < 3 and len(business_ids) > 0:
+        list_of_ids = business_ids
+        cache_business_ids([])
+      elif len(business_ids) <= 0:
+        print("out of ids")
+        # don't make any modification to the current poll
+        return make_response("", 200)
+      else:
+        # when there are more than 3 ids left
+        list_of_ids, business_ids = ReRoll(business_ids).reroll()  
+        cache_business_ids(business_ids)
+        
+      restaurants_arr = []
+      reviews_arr = []
+      for restaurant_id in list_of_ids:
+        restaurants_arr.append(yelp_api.get_business(restaurant_id))
+        reviews_arr.append(yelp_api.get_reviews(restaurant_id))
+      msg = slack_format.build_vote_message(restaurants_arr, reviews_arr) 
+  
+      cache_msg_attachments(msg)
+      ret = update_message(votes_channel_id, votes_ts, **msg)
+      cache_votes_info(ret["ts"], ret["channel"])
+        
     elif selection == "cancel":
+      # cancel voting session
       cache_invoker_info(str(None), str(None), -1) # reset invoker info
-      while cache.get("user_votes") != None:
-        cache.set("user_votes", None)
+      cache.delete("user_votes")
       print("user_votes=", get_cached_votes())
       slack_client.api_call("chat.postMessage", channel=str(votes_channel_id), text="Voting session canceled")
       slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
@@ -184,10 +207,15 @@ def cache_invoker_info(invoker_id, invoked_channel, invoked_ts):
     cache.set("invoker_id", invoker_id)
     cache.set("invoked_channel", invoked_channel)
     cache.set("invoked_ts", invoked_ts)
-    print("Cached Invoker id:",cache.get("invoker_id"),"channel:",cache.get("invoked_channel"),"ts:",cache.get("invoked_ts"))
+    #print("Cached Invoker id:",cache.get("invoker_id"),"channel:",cache.get("invoked_channel"),"ts:",cache.get("invoked_ts"))
 def get_invoker_info():
-    print("Getting Invoker id:",cache.get("invoker_id"),"channel:",cache.get("invoked_channel"),"ts:",cache.get("invoked_ts"))
+    #print("Getting Invoker id:",cache.get("invoker_id"),"channel:",cache.get("invoked_channel"),"ts:",cache.get("invoked_ts"))
     return cache.get("invoker_id"), cache.get("invoked_channel"), cache.get("invoked_ts")
+  
+def cache_business_ids(business_ids):
+    cache.set("business_ids", business_ids)
+def get_business_ids():
+    return cache.get("business_ids")
 ##### HELPERS
 
 # send a message to channel
@@ -198,27 +226,26 @@ def send_message(channel, **msg):
   return slack_client.api_call("chat.postMessage", channel=channel, **msg)
 
 def update_message(channel, ts, **msg):
-  print("Trying to update at ts=", ts)
+  #print("Trying to update at ts=", ts)
   return slack_client.api_call("chat.update", channel=channel, ts=ts, **msg)
 
-def search(channel, term="lunch", location="pittsburgh, pa", limit=3):
-  search_results = yelp_api.search(term, location, limit)
-
+def search(channel, term="lunch", location="pittsburgh, pa"):
+  business_ids = get_business_ids()
+  if not business_ids:
+    limit = 50      # 50 is the maximum we can request for
+    search_results = yelp_api.search(term, location, limit)
+    business_ids = [res["id"] for res in search_results["businesses"]]
+    
+  partial_ids, business_ids = ReRoll(business_ids).reroll()  
+  cache_business_ids(business_ids)
+    
   restaurants_arr = []
   reviews_arr = []
-  for res in search_results["businesses"]:
-    restaurant_id = res["id"]
+  for restaurant_id in partial_ids:
     restaurants_arr.append(yelp_api.get_business(restaurant_id))
     reviews_arr.append(yelp_api.get_reviews(restaurant_id))
-  msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)
-  
-  votes_ts, votes_channel_id = get_votes_info()  
+  msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)  
   
   cache_msg_attachments(msg)  
-  #slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
-  # ephemeral messages cannot be deleted (by the bot at least) will use the invoker id to check when someone
-  # wants to finalize/reroll/cancel the voting session
-  # print(slack_client.api_call("chat.delete", channel=str(invoked_channel), ts=invoked_ts)) 
-
   ret = send_message(channel, **msg)
   cache_votes_info(ret["ts"], ret["channel"])
