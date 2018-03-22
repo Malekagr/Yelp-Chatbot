@@ -5,4 +5,3 @@ requests == 2.11.1
 nltk==3.2.5
 slackclient==1.1.2
 slackeventsapi>=1.1.0
-flask_sqlalchemy==2.3.2
