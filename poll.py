@@ -18,10 +18,20 @@ class Poll(object):
                 self._votes[res_name] = 1
     
     def _update_attachments(self):
-        if "attachments" in self._slack_msg:
-            for att in self._slack_msg["attachments"]:
-                restaurant_name = html.unescape(att["actions"][0]["value"])
-                att["fields"][2]["value"] += self._votes.get(restaurant_name) if restaurant_name in self._votes else 0                  
+-        displayed_res_names = []
+-        actual_stored_names = []
+         if "attachments" in self._slack_msg:
+             for att in self._slack_msg["attachments"]:
+-                restaurant_name = att["actions"][0]["value"]
+-                displayed_res_names.append(restaurant_name)
+-                if restaurant_name in self._votes:
+-                    att["fields"][2]["value"] = self._votes.get(restaurant_name)
+-                elif restaurant_name.replace("&", "&amp;") in self._votes:
+-                    att["fields"][2]["value"] = self._votes.get(restaurant_name.replace("&", "&amp;"))
+-                else:
+-                    att["fields"][2]["value"] = 0
+-                    
+-        print("displayed_res_names:",displayed_res_names,"\nactual_stored_names:", self._votes.keys())             
     
     def get_updated_attachments(self):
         return self._slack_msg
