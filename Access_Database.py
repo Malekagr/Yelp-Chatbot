@@ -135,7 +135,7 @@ class Access_Invoker(object):
         else:
             self.set_invoker_id(invoker_id)
             self.set_invoker_ts(invoked_ts)
-            print("channel name already exists")
+            #print("channel name already exists")
         
     def set_invoker_id(self, invoker_id):
         if self._values:
@@ -202,7 +202,7 @@ class Access_Business_IDs(object):
                 db_conn.rollback()
         else:
             self.set_business_ids(business_ids)
-            print("channel name already exists")
+            #print("channel name already exists")
         
     def set_business_ids(self, business_ids):
         if self._values:
@@ -257,7 +257,7 @@ class Access_General(object):
                 db_conn.rollback()
         else:
             self.set_ts(message_ts)
-            print("channel name already exists")
+            #print("channel name already exists")
     
     def set_ts(self, message_ts):
         if self._values:
