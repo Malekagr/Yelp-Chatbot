@@ -8,6 +8,7 @@ import slack_format
 from yelp import YelpAPI
 from poll import Poll, Finalize, ReRoll
 from Invoker_Options import send_invoker_options
+from Busy_Message import send_busy_message
 from Access_Database import Access_Votes, Access_Invoker, Access_Business_IDs, Access_General
 
 ##### SETUP
@@ -55,6 +56,8 @@ def message_actions():
     invoker_con = Access_Invoker(channel_id)
     bid_con = Access_Business_IDs(channel_id)
     general_con = Access_General(channel_id)
+    
+    print("callback_id=", callback_id)
   
     if callback_id == "vote" and float(message_ts) == float(vote_con.get_votes_ts()):
         # this part handles vote buttons
@@ -63,6 +66,13 @@ def message_actions():
         #print("updated votes:", vote_con.get_user_votes())
         poll = Poll(vote_con.get_msg_attachments(), vote_con.get_user_votes())
         update_message(channel_id, ts=vote_con.get_votes_ts(), **poll.get_updated_attachments())
+        
+    elif callback_id == "busy_message":
+        slack_client.api_call("chat.postMessage", channel=str(channel_id), text="Voting session revoked.")
+        slack_client.api_call("chat.delete", channel=str(channel_id), ts=vote_con.get_votes_ts())
+        invoker_con.delete()
+        vote_con.delete()
+        bid_con.delete()
   
     elif callback_id == "invoker_controls":
         if user_id != invoker_con.get_invoker_id():
@@ -107,13 +117,14 @@ def message_actions():
         
         elif selection == "cancel":
             # cancel voting session
-            print("user_votes=", vote_con.get_user_votes())
+            #print("user_votes=", vote_con.get_user_votes())
             slack_client.api_call("chat.postMessage", channel=str(channel_id), text="Voting session canceled")
-            print("Attempting to delete message at", vote_con.get_votes_ts(), "in", channel_id)
+            #print("Attempting to delete message at", vote_con.get_votes_ts(), "in", channel_id)
             slack_client.api_call("chat.delete", channel=str(channel_id), ts=vote_con.get_votes_ts())
             invoker_con.delete()
             vote_con.delete()
             bid_con.delete()
+
     return make_response("", 200)
 
 # requires 'message' scope
@@ -147,17 +158,16 @@ def bot_invoked(event_data):
     
         invoker_id = invoker_con.get_invoker_id()
         invoked_channel = channel_id
-        invoked_ts = invoker_con.get_invoker_ts()
-    
-        if invoked_ts != None and float(invoked_ts) > 0:
-            pass
-            #print("There is an ongoing poll")
-            #slack_client.api_call("chat.postMessage", channel=str(invoked_channel), text="I'm busy right now, call me once the current poll is finished.")
-            #return make_response("", 200)
-    
+        invoked_ts = invoker_con.get_invoker_ts()        
+            
         if not general_con.validate_timestamp(message["ts"]):
             # the received message either has old timestamp or the same value as the current cached one
             print("Received message too old!")
+            return make_response("", 200)
+    
+        if invoked_ts != None and float(invoked_ts) > 0:
+            print("There is an ongoing poll")
+            send_busy_message(invoked_channel, slack_client)
             return make_response("", 200)
         
         search(channel_id)
