@@ -139,7 +139,6 @@ def bot_invoked(event_data):
         text = message["text"]
         channel_id = message["channel"]
         user = message["user"]
-        search(channel_id)
     
         vote_con = Access_Votes(channel_id)
         invoker_con = Access_Invoker(channel_id)
@@ -160,7 +159,8 @@ def bot_invoked(event_data):
             # the received message either has old timestamp or the same value as the current cached one
             print("Received message too old!")
             return make_response("", 200)
-    
+        
+        search(channel_id)
         general_con.create_general_info(message["ts"])
         ret = send_invoker_options(user, channel_id, slack_client)
         invoker_con.create_invoker_info(user, ret["message_ts"]) 
