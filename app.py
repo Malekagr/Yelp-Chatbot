@@ -58,11 +58,11 @@ def message_actions():
   
     if callback_id == "vote" and float(message_ts) == float(vote_con.get_votes_ts()):
         # this part handles vote buttons
-        print("Updating votes")
+        #print("Updating votes")
         vote_con.set_user_votes(user_id, selection)
         print("updated votes:", vote_con.get_user_votes())
         poll = Poll(vote_con.get_msg_attachments(), vote_con.get_user_votes())
-        update_message(channel_id, ts=vote_con.get_votes_ts(), **poll.get_updated_attachments())
+        print(update_message(channel_id, ts=vote_con.get_votes_ts(), **poll.get_updated_attachments()))
   
     elif callback_id == "invoker_controls":
         if user_id != invoker_con.get_invoker_id():
