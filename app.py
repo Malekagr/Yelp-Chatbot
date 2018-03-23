@@ -68,11 +68,13 @@ def message_actions():
         update_message(channel_id, ts=vote_con.get_votes_ts(), **poll.get_updated_attachments())
         
     elif callback_id == "busy_message":
-        slack_client.api_call("chat.postMessage", channel=str(channel_id), text="Voting session revoked.")
-        slack_client.api_call("chat.delete", channel=str(channel_id), ts=vote_con.get_votes_ts())
-        invoker_con.delete()
-        vote_con.delete()
-        bid_con.delete()
+        if float(invoker_con.get_invoker_ts()) > 0:
+            # if there are values to delete (if there exists an ongoing poll)
+            slack_client.api_call("chat.postMessage", channel=str(channel_id), text="Voting session revoked.")
+            slack_client.api_call("chat.delete", channel=str(channel_id), ts=vote_con.get_votes_ts())
+            invoker_con.delete()
+            vote_con.delete()
+            bid_con.delete()
   
     elif callback_id == "invoker_controls":
         if user_id != invoker_con.get_invoker_id():
@@ -161,7 +163,7 @@ def bot_invoked(event_data):
         invoked_ts = invoker_con.get_invoker_ts()        
             
         if not general_con.validate_timestamp(message["ts"]):
-            # the received message either has old timestamp or the same value as the current cached one
+            # the received message either has old timestamp or the same value as the current stored one
             print("Received message too old!")
             return make_response("", 200)
     
