@@ -60,9 +60,9 @@ def message_actions():
         # this part handles vote buttons
         #print("Updating votes")
         vote_con.set_user_votes(user_id, selection)
-        print("updated votes:", vote_con.get_user_votes())
+        #print("updated votes:", vote_con.get_user_votes())
         poll = Poll(vote_con.get_msg_attachments(), vote_con.get_user_votes())
-        print(update_message(channel_id, ts=vote_con.get_votes_ts(), **poll.get_updated_attachments()))
+        update_message(channel_id, ts=vote_con.get_votes_ts(), **poll.get_updated_attachments())
   
     elif callback_id == "invoker_controls":
         if user_id != invoker_con.get_invoker_id():
@@ -74,7 +74,7 @@ def message_actions():
             conclusion = Finalize.conclude(vote_con.get_user_votes())
             print("user_votes=", vote_con.get_user_votes())
       
-            print(slack_client.api_call("chat.delete", channel=str(channel_id), ts=vote_con.get_votes_ts()))
+            slack_client.api_call("chat.delete", channel=str(channel_id), ts=vote_con.get_votes_ts())
             slack_client.api_call("chat.postMessage", channel=channel_id, text=conclusion)
             invoker_con.delete()
             vote_con.delete()
