@@ -127,7 +127,7 @@ def message_actions():
             vote_con.delete()
             bid_con.delete()
 
-    return make_response("", 200)
+    return okay()
 
 # requires 'message' scope
 @slack_events_adapter.on("message")
@@ -141,7 +141,7 @@ def handle_message(event_data):
         #general_con = Access_General(channel_id)
         #general_con.set_ts(message["ts"])
         print(event_data)
-    return make_response("", 200)
+    return okay()
 
 # handles when bots name is mentioned
 @slack_events_adapter.on("app_mention")
@@ -177,7 +177,7 @@ def bot_invoked(event_data):
         ret = send_invoker_options(user, channel_id, slack_client)
         invoker_con.create_invoker_info(user, ret["message_ts"]) 
 
-    return make_response("", 200)
+    return okay()
 
 ##### HELPERS
 
@@ -216,3 +216,8 @@ def search(channel, term="lunch", location="pittsburgh, pa"):
     
     ret = send_message(channel, **msg)
     vote_con.create_votes_info(str(ret["ts"]), msg)
+    
+def okay():
+    res = make_response("", 200)
+    res.headers["X-Slack-No-Retry"] = 1
+    return res
