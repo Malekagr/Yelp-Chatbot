@@ -12,6 +12,12 @@ https://trello.com/b/WWEWPZE2/user-stories
 
 `flask run`
 
-#### Required files
+#### Required env-vars
 
-`credentials.json`
+>`SLACK_BOT_TOKEN`
+>
+>`SLACK_VERIFICATION_TOKEN`
+>
+>`YELP_API_KEY`
+>
+>`DATABASE_URL`

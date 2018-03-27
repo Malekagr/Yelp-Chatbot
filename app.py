@@ -13,20 +13,14 @@ from functools import wraps
 
 ##### SETUP
 app = Flask(__name__)
+env_vars = ["SLACK_BOT_TOKEN", "SLACK_VERIFICATION_TOKEN", "YELP_API_KEY", "DATABASE_URL"]
 
-# import an environment variable as an app config option
-# throws KeyError
-def import_env_var(app, env_var):
-    app.config[env_var] = os.environ[env_var]
-
-try:
-    import_env_var(app, "SLACK_BOT_TOKEN")
-    import_env_var(app, "SLACK_VERIFICATION_TOKEN")
-    import_env_var(app, "YELP_API_KEY")
-    import_env_var(app, "DATABASE_URL")
-except KeyError:
-    print("Could not load environment variables")
-    sys.exit()
+for var in env_vars:
+    try:
+        app.config[var] = os.environ[var]
+    except KeyError:
+        print("Could not load environment variable {}".format(var))
+        sys.exit()
 
 slack_client = SlackClient(app.config["SLACK_BOT_TOKEN"])
 slack_events_adapter = SlackEventAdapter(app.config["SLACK_VERIFICATION_TOKEN"], endpoint="/slack/events", server=app)
