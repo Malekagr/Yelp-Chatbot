@@ -222,3 +222,25 @@ def search(channel, term="lunch", location="pittsburgh, pa", limit=3):
 
   ret = send_message(channel, **msg)
   cache_votes_info(ret["ts"], ret["channel"])
+
+
+def print_winner(winner_id)
+  #arrays used to pass into the format_restaurant method
+  winner_arr = []
+  winner_review = []
+
+  #winner_id used for identifying which resturant to display
+  #build the arrays to pass into printing the new message
+  winner_arr.append(yelp_api.get_reviews(winner_id))
+  winner_review.append(yelp_api.get_reviews(winner_id))
+
+  #print the new message
+  msg = slack_format.format_restaurant(winner_arr, winner_review)
+  cache_msg_attachments(msg)  
+  #slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
+  # ephemeral messages cannot be deleted (by the bot at least) will use the invoker id to check when someone
+  # wants to finalize/reroll/cancel the voting session
+  # print(slack_client.api_call("chat.delete", channel=str(invoked_channel), ts=invoked_ts)) 
+
+  ret = send_message(channel, **msg)
+  cache_votes_info(ret["ts"], ret["channel"])
