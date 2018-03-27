@@ -1,15 +1,15 @@
 import click, os, sys, json
+import psycopg2
+import slack_format
 from slackclient import SlackClient
 from slackeventsapi import SlackEventAdapter
 from flask import Flask, make_response, Response, request
-import psycopg2
-
-import slack_format
 from yelp import YelpAPI
 from poll import Poll, Finalize, ReRoll
 from Invoker_Options import send_invoker_options
 from Busy_Message import send_busy_message
 from Access_Database import Access_Votes, Access_Invoker, Access_Business_IDs, Access_General
+from functools import wraps
 
 ##### SETUP
 app = Flask(__name__)
@@ -33,15 +33,29 @@ slack_events_adapter = SlackEventAdapter(app.config["SLACK_VERIFICATION_TOKEN"],
 yelp_api = YelpAPI(app.config["YELP_API_KEY"])
 db_conn = psycopg2.connect(app.config["DATABASE_URL"])
 
-@app.route("/", methods=["POST", "GET"])
-def hello():
-    return 'OK'
+
+# no more repeats please
+def reject_repeats(f1):
+  @wraps(f1)
+  def f2():
+    if "X-Slack-Retry-Num" in request.headers and request.headers["X-Slack-Retry-Num"] > 1:
+      print("Caught and blocked a retry - retry reason ({})".format(request.headers["X-Slack-Retry-Reason"]))
+      return okay()
+    return f1()
+  return f2
+
+def okay():
+  res = make_response("", 200)
+  res.headers["X-Slack-No-Retry"] = 1
+  return res
+
 
 ##### EVENT HANDLERS
 
 # handles button press events, where only the votes will be handled
 # and there can only exist one ongoing voting session (for now)
 @app.route("/slack/message_actions", methods=["POST"])
+@reject_repeats
 def message_actions():
     # Parse the request payload
     form_json = json.loads(request.form["payload"])
@@ -130,6 +144,7 @@ def message_actions():
 
 # requires 'message' scope
 @slack_events_adapter.on("message")
+@reject_repeats
 def handle_message(event_data):
     message = event_data["event"]
     if message.get("subtype") is None and not message.get("text") is None:
@@ -144,6 +159,7 @@ def handle_message(event_data):
 
 # handles when bots name is mentioned
 @slack_events_adapter.on("app_mention")
+@reject_repeats
 def bot_invoked(event_data):
     message = event_data["event"]
 
@@ -188,7 +204,6 @@ def send_message(channel, **msg):
     return slack_client.api_call("chat.postMessage", channel=channel, **msg)
 
 def update_message(channel, ts, **msg):
-
   print("Trying to update at ts=", ts)
   return slack_client.api_call("chat.update", channel=channel, ts=ts, **msg)
 
@@ -202,20 +217,20 @@ def search(channel, term="lunch", location="pittsburgh, pa", limit=3):
     restaurants_arr.append(yelp_api.get_business(restaurant_id))
     reviews_arr.append(yelp_api.get_reviews(restaurant_id))
   msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)
-  
-  votes_ts, votes_channel_id = get_votes_info()  
-  
-  cache_msg_attachments(msg)  
+
+  votes_ts, votes_channel_id = get_votes_info()
+
+  cache_msg_attachments(msg)
   #slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
   # ephemeral messages cannot be deleted (by the bot at least) will use the invoker id to check when someone
   # wants to finalize/reroll/cancel the voting session
-  # print(slack_client.api_call("chat.delete", channel=str(invoked_channel), ts=invoked_ts)) 
+  # print(slack_client.api_call("chat.delete", channel=str(invoked_channel), ts=invoked_ts))
 
   ret = send_message(channel, **msg)
   cache_votes_info(ret["ts"], ret["channel"])
 
 
-def print_winner(winner_id)
+def print_winner(winner_id):
   #arrays used to pass into the format_restaurant method
   winner_arr = []
   winner_review = []
@@ -227,16 +242,11 @@ def print_winner(winner_id)
 
   #print the new message
   msg = slack_format.format_restaurant(winner_arr, winner_review)
-  cache_msg_attachments(msg)  
+  cache_msg_attachments(msg)
   #slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
   # ephemeral messages cannot be deleted (by the bot at least) will use the invoker id to check when someone
   # wants to finalize/reroll/cancel the voting session
-  # print(slack_client.api_call("chat.delete", channel=str(invoked_channel), ts=invoked_ts)) 
+  # print(slack_client.api_call("chat.delete", channel=str(invoked_channel), ts=invoked_ts))
 
   ret = send_message(channel, **msg)
   cache_votes_info(ret["ts"], ret["channel"])
-  
-  def okay():
-    res = make_response("", 200)
-    res.headers["X-Slack-No-Retry"] = 1
-    return res
