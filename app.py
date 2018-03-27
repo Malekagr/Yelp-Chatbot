@@ -33,17 +33,17 @@ slack_events_adapter = SlackEventAdapter(app.config["SLACK_VERIFICATION_TOKEN"],
 yelp_api = YelpAPI(app.config["YELP_API_KEY"])
 db_conn = psycopg2.connect(app.config["DATABASE_URL"])
 
-
-# no more repeats please
+# wrapper to filter out retries
 def reject_repeats(f1):
   @wraps(f1)
-  def f2():
-    if "X-Slack-Retry-Num" in request.headers and request.headers["X-Slack-Retry-Num"] > 1:
+  def f2(*args, **kwargs):
+    if "X-Slack-Retry-Num" in request.headers and int(request.headers["X-Slack-Retry-Num"]) > 1:
       print("Caught and blocked a retry - retry reason ({})".format(request.headers["X-Slack-Retry-Reason"]))
       return okay()
-    return f1()
+    return f1(*args, **kwargs)
   return f2
 
+# builds okay response with no-retry header
 def okay():
   res = make_response("", 200)
   res.headers["X-Slack-No-Retry"] = 1
@@ -93,7 +93,7 @@ def message_actions():
     elif callback_id == "invoker_controls":
         if user_id != invoker_con.get_invoker_id():
             print("Invoker:", invoker_con.get_invoker_id(), "user:", user_id)
-            return make_response("", 200)
+            return okay()
 
         if selection == "finalize":
           # finalize votes
