@@ -35,19 +35,19 @@ db_conn = psycopg2.connect(app.config["DATABASE_URL"])
 
 # wrapper to filter out retries
 def reject_repeats(f1):
-  @wraps(f1)
-  def f2(*args, **kwargs):
-    if "X-Slack-Retry-Num" in request.headers and int(request.headers["X-Slack-Retry-Num"]) > 1:
-      print("Caught and blocked a retry - retry reason ({})".format(request.headers["X-Slack-Retry-Reason"]))
-      return okay()
-    return f1(*args, **kwargs)
-  return f2
+    @wraps(f1)
+    def f2(*args, **kwargs):
+        if "X-Slack-Retry-Num" in request.headers and int(request.headers["X-Slack-Retry-Num"]) > 1:
+            print("Caught and blocked a retry - retry reason ({})".format(request.headers["X-Slack-Retry-Reason"]))
+            return okay()
+        return f1(*args, **kwargs)
+    return f2
 
 # builds okay response with no-retry header
 def okay():
-  res = make_response("", 200)
-  res.headers["X-Slack-No-Retry"] = 1
-  return res
+    res = make_response("", 200)
+    res.headers["X-Slack-No-Retry"] = 1
+    return res
 
 
 ##### EVENT HANDLERS
@@ -204,49 +204,49 @@ def send_message(channel, **msg):
     return slack_client.api_call("chat.postMessage", channel=channel, **msg)
 
 def update_message(channel, ts, **msg):
-  print("Trying to update at ts=", ts)
-  return slack_client.api_call("chat.update", channel=channel, ts=ts, **msg)
+    print("Trying to update at ts=", ts)
+    return slack_client.api_call("chat.update", channel=channel, ts=ts, **msg)
 
 def search(channel, term="lunch", location="pittsburgh, pa", limit=3):
-  search_results = yelp_api.search(term, location, limit)
+    search_results = yelp_api.search(term, location, limit)
 
-  restaurants_arr = []
-  reviews_arr = []
-  for res in search_results["businesses"]:
-    restaurant_id = res["id"]
-    restaurants_arr.append(yelp_api.get_business(restaurant_id))
-    reviews_arr.append(yelp_api.get_reviews(restaurant_id))
-  msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)
+    restaurants_arr = []
+    reviews_arr = []
+    for res in search_results["businesses"]:
+        restaurant_id = res["id"]
+        restaurants_arr.append(yelp_api.get_business(restaurant_id))
+        reviews_arr.append(yelp_api.get_reviews(restaurant_id))
+    msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)
 
-  votes_ts, votes_channel_id = get_votes_info()
+    votes_ts, votes_channel_id = get_votes_info()
 
-  cache_msg_attachments(msg)
-  #slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
-  # ephemeral messages cannot be deleted (by the bot at least) will use the invoker id to check when someone
-  # wants to finalize/reroll/cancel the voting session
-  # print(slack_client.api_call("chat.delete", channel=str(invoked_channel), ts=invoked_ts))
+    cache_msg_attachments(msg)
+    #slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
+    # ephemeral messages cannot be deleted (by the bot at least) will use the invoker id to check when someone
+    # wants to finalize/reroll/cancel the voting session
+    # print(slack_client.api_call("chat.delete", channel=str(invoked_channel), ts=invoked_ts))
 
-  ret = send_message(channel, **msg)
-  cache_votes_info(ret["ts"], ret["channel"])
+    ret = send_message(channel, **msg)
+    cache_votes_info(ret["ts"], ret["channel"])
 
 
 def print_winner(winner_id):
-  #arrays used to pass into the format_restaurant method
-  winner_arr = []
-  winner_review = []
+    #arrays used to pass into the format_restaurant method
+    winner_arr = []
+    winner_review = []
 
-  #winner_id used for identifying which resturant to display
-  #build the arrays to pass into printing the new message
-  winner_arr.append(yelp_api.get_reviews(winner_id))
-  winner_review.append(yelp_api.get_reviews(winner_id))
+    #winner_id used for identifying which resturant to display
+    #build the arrays to pass into printing the new message
+    winner_arr.append(yelp_api.get_reviews(winner_id))
+    winner_review.append(yelp_api.get_reviews(winner_id))
 
-  #print the new message
-  msg = slack_format.format_restaurant(winner_arr, winner_review)
-  cache_msg_attachments(msg)
-  #slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
-  # ephemeral messages cannot be deleted (by the bot at least) will use the invoker id to check when someone
-  # wants to finalize/reroll/cancel the voting session
-  # print(slack_client.api_call("chat.delete", channel=str(invoked_channel), ts=invoked_ts))
+    #print the new message
+    msg = slack_format.format_restaurant(winner_arr, winner_review)
+    cache_msg_attachments(msg)
+    #slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
+    # ephemeral messages cannot be deleted (by the bot at least) will use the invoker id to check when someone
+    # wants to finalize/reroll/cancel the voting session
+    # print(slack_client.api_call("chat.delete", channel=str(invoked_channel), ts=invoked_ts))
 
-  ret = send_message(channel, **msg)
-  cache_votes_info(ret["ts"], ret["channel"])
+    ret = send_message(channel, **msg)
+    cache_votes_info(ret["ts"], ret["channel"])
