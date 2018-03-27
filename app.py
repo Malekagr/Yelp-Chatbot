@@ -38,7 +38,7 @@ db_conn = psycopg2.connect(app.config["DATABASE_URL"])
 def reject_repeats(f1):
   @wraps(f1)
   def f2(*args, **kwargs):
-    if "X-Slack-Retry-Num" in request.headers and request.headers["X-Slack-Retry-Num"] > 1:
+    if "X-Slack-Retry-Num" in request.headers and int(request.headers["X-Slack-Retry-Num"]) > 1:
       print("Caught and blocked a retry - retry reason ({})".format(request.headers["X-Slack-Retry-Reason"]))
       return okay()
     return f1(*args, **kwargs)
