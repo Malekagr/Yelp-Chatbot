@@ -8,7 +8,8 @@ from yelp import YelpAPI
 from poll import Poll, Finalize, ReRoll
 from Invoker_Options import send_invoker_options
 from Busy_Message import send_busy_message
-from Access_Database import Access_Votes, Access_Invoker, Access_Business_IDs, Access_General
+from Access_Database import Access_Votes, Access_Invoker, Access_Business_IDs, Access_General, Access_Poll
+from Command_Line_Feature import parse_command, send_help
 from functools import wraps
 
 ##### SETUP
@@ -180,11 +181,23 @@ def bot_invoked(event_data):
             print("There is an ongoing poll")
             send_busy_message(invoked_channel, slack_client)
             return okay()
-
-        search(channel_id)
-        general_con.create_general_info(message["ts"])
-        ret = send_invoker_options(user, channel_id, slack_client)
-        invoker_con.create_invoker_info(user, ret["message_ts"])
+        
+        command_info = parse_command(text)
+        ap_con = Access_Poll(channel_id)
+    
+        if command_info["type"] == "location":       
+            ap_con.create_poll_info(locations=command_info["location"])
+        
+        elif command_info["type"] == "poll":
+            if command_info["terms"] != '':
+                ap_con.create_poll_info(locations=command_info["terms"])
+            search(channel_id, term=ap_con.get_terms(), location=ap_con.get_locations())
+            general_con.create_general_info(message["ts"])
+            ret = send_invoker_options(user, channel_id, slack_client)
+            invoker_con.create_invoker_info(user, ret["message_ts"])
+        
+        else:
+            send_help(bot_name="yoshinobot", channel_id=channel_id, slack_client=slack_client)        
 
     return okay()
 
@@ -237,11 +250,6 @@ def print_winner(winner_id):
 
     #print the new message
     msg = slack_format.format_restaurant(winner_arr, winner_review)
-    #cache_msg_attachments(msg)
-    #slack_client.api_call("chat.delete", channel=str(votes_channel_id), ts=votes_ts)
-    # ephemeral messages cannot be deleted (by the bot at least) will use the invoker id to check when someone
-    # wants to finalize/reroll/cancel the voting session
-    # print(slack_client.api_call("chat.delete", channel=str(invoked_channel), ts=invoked_ts))
 
     ret = send_message(channel, **msg)
     #cache_votes_info(ret["ts"], ret["channel"])
