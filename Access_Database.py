@@ -135,7 +135,7 @@ class Access_Invoker(object):
         else:
             self.set_invoker_id(invoker_id)
             self.set_invoker_ts(invoked_ts)
-            #print("channel name already exists")
+            print("channel name already exists")
         
     def set_invoker_id(self, invoker_id):
         if self._values:
@@ -202,7 +202,7 @@ class Access_Business_IDs(object):
                 db_conn.rollback()
         else:
             self.set_business_ids(business_ids)
-            #print("channel name already exists")
+            print("channel name already exists")
         
     def set_business_ids(self, business_ids):
         if self._values:
@@ -257,7 +257,7 @@ class Access_General(object):
                 db_conn.rollback()
         else:
             self.set_ts(message_ts)
-            #print("channel name already exists")
+            print("channel name already exists")
     
     def set_ts(self, message_ts):
         if self._values:
@@ -286,3 +286,68 @@ class Access_General(object):
             return False
         return True
 
+class Access_Poll(object):
+    def __init__(self, channel_id):
+        self._channel = str(channel_id)
+        self._insert_query = '''
+        INSERT INTO "Poll_Info"(poll_channel, terms, locations)
+        VALUES (%s, %s, %s)
+        '''      
+        self._delete_query = '''DELETE FROM "Poll_Info" WHERE poll_channel = %s'''
+        
+        self._update_row_values()        
+        self._update_existing_channel_list()
+
+        self._terms_pos = 2
+        self._locations_pos = 3
+        
+    def _update_row_values(self):
+        cur.execute('''SELECT * FROM "Poll_Info" WHERE poll_channel = %s''', (self._channel,))
+        self._values = cur.fetchall()
+    
+    def _update_existing_channel_list(self):
+        cur.execute('''SELECT poll_channel FROM "Poll_Info"''')
+        self._existing_channel_names = cur.fetchall()
+        self._existing_channel_names = list(c[0] for c in self._existing_channel_names)
+        
+    def create_poll_info(self, terms="", locations=""):
+        if self._channel not in self._existing_channel_names:
+            cur.execute(self._insert_query, (self._channel, str(terms), str(locations)))
+            db_conn.commit()
+            self._update_row_values()  
+            self._update_existing_channel_list()
+        else:
+            print("channel name already exists")
+            
+    def set_terms(self, terms=""):
+        if self._values:
+            # if the list is not empty, i.e. row exists
+            cur.execute('''UPDATE "Poll_Info" SET "terms" = %s WHERE "poll_channel" = %s''' , (str(terms), self._channel))
+            db_conn.commit()
+            self._update_row_values()
+    
+    def get_terms(self):
+        if self._values:
+            return self._values[0][self._terms_pos]
+        else:
+            return ""
+    
+    def set_locations(self, locations=""):
+        if self._values:
+            # if the list is not empty, i.e. row exists
+            cur.execute('''UPDATE "Poll_Info" SET "locations" = %s WHERE "poll_channel" = %s''' , (str(locations), self._channel))
+            db_conn.commit()
+            self._update_row_values()
+            
+    def get_locations(self):
+        if self._values:
+            return self._values[0][self._locations_pos]
+        else:
+            return ""
+            
+    def delete(self):
+        if self._values:
+            cur.execute(self._delete_query, (self._channel,))
+            db_conn.commit()
+            self._update_row_values()        
+            self._update_existing_channel_list()
