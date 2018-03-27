@@ -49,6 +49,7 @@ class Poll(object):
             votes[k] = round(v * 1.0 / total, 2)
         return votes
     
+    #return the places with the most votes, and randomly select one of the places if two have tied votes.
     @staticmethod
     def get_winner(user_votes={}):
         restaurant_votes = Poll.get_restaurant_votes(user_votes)
