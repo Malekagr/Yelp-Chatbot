@@ -1,120 +1,256 @@
-import os
-from flask import Flask, request, abort, make_response
-import configparser
+import click, os, sys, json
+import psycopg2
+import slack_format
+from slackclient import SlackClient
+from slackeventsapi import SlackEventAdapter
+from flask import Flask, make_response, Response, request
+from yelp import YelpAPI
+from poll import Poll, Finalize, ReRoll
+from Invoker_Options import send_invoker_options
+from Busy_Message import send_busy_message
+from Access_Database import Access_Votes, Access_Invoker, Access_Business_IDs, Access_General, Access_Poll
+from Command_Line_Feature import parse_command, send_help
+from functools import wraps
 
-from linebot import (
-    LineBotApi, WebhookHandler
-)
-from linebot.exceptions import (
-    InvalidSignatureError
-)
-from linebot.models import (
-    MessageEvent, TextMessage, TextSendMessage,
-)
-
-from linebot.models import *
-from Access_Database import Access_Leaders
-
-import requests
-import json
-
+##### SETUP
 app = Flask(__name__)
-config = configparser.ConfigParser()
-config.read("config.ini")
+env_vars = ["SLACK_BOT_TOKEN", "SLACK_VERIFICATION_TOKEN", "YELP_API_KEY", "DATABASE_URL"]
 
-line_bot_api = LineBotApi(config['line_bot']['Channel_Access_Token'])
-handler = WebhookHandler(config['line_bot']['Channel_Secret'])
-
-@app.route("/callback", methods=['POST'])
-def callback():
-    # get X-Line-Signature header value
-    signature = request.headers['X-Line-Signature']
-
-    # get request body as text
-    body = request.get_data(as_text=True)
-    app.logger.info("Request body: " + body)
-
-    # handle webhook body
+for var in env_vars:
     try:
-        handler.handle(body, signature)
-    except InvalidSignatureError:
-        abort(400)
+        app.config[var] = os.environ[var]
+    except KeyError:
+        print("Could not load environment variable {}".format(var))
+        sys.exit()
 
-    return 'OK'
+slack_client = SlackClient(app.config["SLACK_BOT_TOKEN"])
+slack_events_adapter = SlackEventAdapter(app.config["SLACK_VERIFICATION_TOKEN"], endpoint="/slack/events", server=app)
+yelp_api = YelpAPI(app.config["YELP_API_KEY"])
+db_conn = psycopg2.connect(app.config["DATABASE_URL"])
+
+# wrapper to filter out retries
+def reject_repeats(f1):
+    @wraps(f1)
+    def f2(*args, **kwargs):
+        if "X-Slack-Retry-Num" in request.headers and int(request.headers["X-Slack-Retry-Num"]) > 1:
+            print("Caught and blocked a retry - retry reason ({})".format(request.headers["X-Slack-Retry-Reason"]))
+            return okay()
+        return f1(*args, **kwargs)
+    return f2
+
+# builds okay response with no-retry header
+def okay():
+    res = make_response("", 200)
+    res.headers["X-Slack-No-Retry"] = 1
+    return res
 
 
-@handler.add(MessageEvent, message=TextMessage)
-def handle_message(event):
-    print(event)
-    # line_bot_api.reply_message(event.reply_token, TextSendMessage(text=event.message.text))
-    msg = event.message.text
-    if msg[0] != "!":
-        return make_response("", 200)
-    if event.source.type == "room":
-        r_token = event.source.room_id # should've named room id, which is unique
-    else:
-        r_token = event.source.user_id
-    al_con = Access_Leaders(r_token)
-    al_con.create_leaders_list()
-    tokens = msg.split(" ")
-    reply_msg = ""
-    if len(tokens) >= 2 and tokens[0].lower() == "!add":
-        leader_name = ' '.join(tokens[1:])
-        al_con.add_leader(leader_name)
-        reply_msg = "{}'s leader now has been caught {} time(s)".format(leader_name, al_con.get_leader_lost_count(leader_name))
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_msg))
-        
-    elif len(tokens) >= 2 and tokens[0].lower() == "!sub":
-        leader_name = ' '.join(tokens[1:])
-        al_con.sub_leader(leader_name)
-        reply_msg = "{}'s leader now has been caught {} time(s)".format(leader_name, al_con.get_leader_lost_count(leader_name))
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_msg))
-        
-    elif len(tokens) >= 2 and tokens[0].lower() == "!get":
-        leader_name = ' '.join(tokens[1:])
-        reply_msg = "{}'s leader has been caught {} time(s)".format(leader_name, al_con.get_leader_lost_count(leader_name))
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_msg))
-        
-    elif msg.rstrip().lower() == "!getall":
-        d = al_con.get_leader_dict()
-        reply_msg = ""
-        for k,v in d.items():
-            reply_msg += "{}'s leader has been caught {} time(s)\n".format(k, v)
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_msg))
-        
-    elif len(tokens) >= 2 and tokens[0].lower() == "!delete":
-        leader_name = ' '.join(tokens[1:])
-        al_con.delete_leader(leader_name)
-        reply_msg = "Removed {} from the list".format(leader_name)
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_msg))
-        
-    elif len(tokens) >= 2 and tokens[0].lower() == "!set":
-        leader_name = ' '.join(tokens[1:-1])
-        try:
-            count = int(tokens[-1])
-            al_con.set_leader_count(leader_name, count)
-            reply_msg = "{}'s leader now has been caught {} time(s)".format(leader_name, al_con.get_leader_lost_count(leader_name))
-        except:            
-            reply_msg = "Invalid number"
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_msg))
-        
-    elif msg.rstrip().lower() == "!help":
-        reply_msg = get_help_message()
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_msg))
-    return make_response("", 200)
+##### EVENT HANDLERS
 
-def get_help_message():
-    help_msg = '''
-    HELP MENU
-    !add <name> : adds 1 leader caught count under the <name>
-    !sub <name> : subtracts 1 leader caught count under the <name>
-    !delete <name> : removes <name> from the list
-    !set <name> <count> : directly sets caught count to <count>
-    !get <name> : gets the caught count of <name>
-    !getall : lists out everyone's count
-    !help : to bring up this menu
-    '''
-    return help_msg
+# handles button press events, where only the votes will be handled
+# and there can only exist one ongoing voting session (for now)
+@app.route("/slack/message_actions", methods=["POST"])
+@reject_repeats
+def message_actions():
+    # Parse the request payload
+    form_json = json.loads(request.form["payload"])
+    # Check to see what the user's selection was and update the message
+    user_id = form_json["user"]["id"]
+    channel_id = form_json["channel"]["id"]
+    callback_id = form_json["callback_id"]
+    selection = form_json["actions"][0]["value"]
+    message_ts = form_json["message_ts"]
 
-if __name__ == "__main__":
-    app.run()
+    vote_con = Access_Votes(channel_id)
+    invoker_con = Access_Invoker(channel_id)
+    bid_con = Access_Business_IDs(channel_id)
+    general_con = Access_General(channel_id)
+
+    print("callback_id=", callback_id)
+
+    if callback_id == "vote" and float(message_ts) == float(vote_con.get_votes_ts()):
+        # this part handles vote buttons
+        #print("Updating votes")
+        vote_con.set_user_votes(user_id, selection)
+        #print("updated votes:", vote_con.get_user_votes())
+        poll = Poll(vote_con.get_msg_attachments(), vote_con.get_user_votes())
+        update_message(channel_id, ts=vote_con.get_votes_ts(), **poll.get_updated_attachments())
+
+    elif callback_id == "busy_message":
+        if float(invoker_con.get_invoker_ts()) > 0:
+            # if there are values to delete (if there exists an ongoing poll)
+            slack_client.api_call("chat.postMessage", channel=str(channel_id), text="Voting session revoked.")
+            slack_client.api_call("chat.delete", channel=str(channel_id), ts=vote_con.get_votes_ts())
+            invoker_con.delete()
+            vote_con.delete()
+            bid_con.delete()
+
+    elif callback_id == "invoker_controls":
+        if user_id != invoker_con.get_invoker_id():
+            print("Invoker:", invoker_con.get_invoker_id(), "user:", user_id)
+            return okay()
+
+        if selection == "finalize":
+          # finalize votes
+            conclusion, winner = Finalize.conclude(vote_con.get_user_votes())
+            #print("user_votes=", vote_con.get_user_votes())
+            slack_client.api_call("chat.delete", channel=channel_id, ts=vote_con.get_votes_ts())
+            slack_client.api_call("chat.postMessage", channel=channel_id, text=conclusion)
+            slack_client.api_call("chat.postMessage", channel=channel_id, text="The chosen winner is: {}".format(winner))
+            invoker_con.delete()
+            vote_con.delete()
+            bid_con.delete()
+
+        elif selection == "reroll":
+          # reroll votes
+            business_ids = bid_con.get_business_ids()
+            if len(business_ids) < 3 and len(business_ids) > 0:
+                list_of_ids = business_ids
+                bid_con.set_business_ids([])
+            elif len(business_ids) <= 0:
+                print("out of ids")
+                # don't make any modification to the current poll
+                return okay()
+            else:
+                # when there are more than 3 ids left
+                list_of_ids, business_ids = ReRoll(business_ids).reroll()
+                bid_con.set_business_ids(business_ids)
+
+            restaurants_arr = []
+            reviews_arr = []
+            for restaurant_id in list_of_ids:
+                restaurants_arr.append(yelp_api.get_business(restaurant_id))
+                reviews_arr.append(yelp_api.get_reviews(restaurant_id))
+            msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)
+
+            vote_con.set_msg_attachments(msg)
+            ret = update_message(channel_id, vote_con.get_votes_ts(), **msg)
+
+        elif selection == "cancel":
+            # cancel voting session
+            #print("user_votes=", vote_con.get_user_votes())
+            slack_client.api_call("chat.postMessage", channel=str(channel_id), text="Voting session canceled")
+            #print("Attempting to delete message at", vote_con.get_votes_ts(), "in", channel_id)
+            slack_client.api_call("chat.delete", channel=str(channel_id), ts=vote_con.get_votes_ts())
+            invoker_con.delete()
+            vote_con.delete()
+            bid_con.delete()
+
+    return okay()
+
+# requires 'message' scope
+@slack_events_adapter.on("message")
+@reject_repeats
+def handle_message(event_data):
+    message = event_data["event"]
+    if message.get("subtype") is None and not message.get("text") is None:
+        #ts = get_ts()
+        text = message["text"]
+        channel_id = message["channel"]
+        user = message["user"]
+        #general_con = Access_General(channel_id)
+        #general_con.set_ts(message["ts"])
+        print(event_data)
+    return okay()
+
+# handles when bots name is mentioned
+@slack_events_adapter.on("app_mention")
+@reject_repeats
+def bot_invoked(event_data):
+    message = event_data["event"]
+
+    if message.get("subtype") is None and not message.get("text") is None:
+        text = message["text"]
+        channel_id = message["channel"]
+        user = message["user"]
+
+        vote_con = Access_Votes(channel_id)
+        invoker_con = Access_Invoker(channel_id)
+        bid_con = Access_Business_IDs(channel_id)
+        general_con = Access_General(channel_id)
+
+        invoker_id = invoker_con.get_invoker_id()
+        invoked_channel = channel_id
+        invoked_ts = invoker_con.get_invoker_ts()
+
+        if not general_con.validate_timestamp(message["ts"]):
+            # the received message either has old timestamp or the same value as the current stored one
+            print("Received message too old!")
+            return okay()
+
+        if invoked_ts != None and float(invoked_ts) > 0:
+            print("There is an ongoing poll")
+            send_busy_message(invoked_channel, slack_client)
+            return okay()
+        
+        command_info = parse_command(text)
+        ap_con = Access_Poll(channel_id)
+    
+        if command_info["type"] == "location":       
+            ap_con.create_poll_info(locations=command_info["location"])
+        
+        elif command_info["type"] == "poll":
+            if command_info["terms"] != '':
+                ap_con.create_poll_info(locations=command_info["terms"])
+            search(channel_id, term=ap_con.get_terms(), location=ap_con.get_locations())
+            general_con.create_general_info(message["ts"])
+            ret = send_invoker_options(user, channel_id, slack_client)
+            invoker_con.create_invoker_info(user, ret["message_ts"])
+        
+        else:
+            send_help(bot_name="yoshinobot", channel_id=channel_id, slack_client=slack_client)        
+
+    return okay()
+
+##### HELPERS
+
+# send a message to channel
+# uses keyword args to expand message
+# for simple messages, use send_message(channel, text="simple message")
+# for dict/formatted messages, use send_message(channel, **msg)
+def send_message(channel, **msg):
+    return slack_client.api_call("chat.postMessage", channel=channel, **msg)
+
+def update_message(channel, ts, **msg):
+    return slack_client.api_call("chat.update", channel=channel, ts=ts, **msg)
+
+def search(channel, term="lunch", location="pittsburgh, pa"):
+    vote_con = Access_Votes(channel)
+    invoker_con = Access_Invoker(channel)
+    bid_con = Access_Business_IDs(channel)
+    general_con = Access_General(channel)
+        
+    business_ids = bid_con.get_business_ids()
+    if not business_ids:
+        limit = 50      # 50 is the maximum we can request for
+        search_results = yelp_api.search(term, location, limit)
+        business_ids = [res["id"] for res in search_results["businesses"]]
+    
+    partial_ids, business_ids = ReRoll(business_ids).reroll()  
+    bid_con.create_business_ids(business_ids)
+    
+    restaurants_arr = []
+    reviews_arr = []
+    for restaurant_id in partial_ids:
+        restaurants_arr.append(yelp_api.get_business(restaurant_id))
+        reviews_arr.append(yelp_api.get_reviews(restaurant_id))
+    msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)  
+    
+    ret = send_message(channel, **msg)
+    vote_con.create_votes_info(str(ret["ts"]), msg)
+
+def print_winner(channel, winner_id):
+    #arrays used to pass into the format_restaurant method
+    winner_arr = []
+    winner_review = []
+
+    #winner_id used for identifying which resturant to display
+    #build the arrays to pass into printing the new message
+    winner_arr.append(yelp_api.get_business(winner_id))
+    winner_review.append(yelp_api.get_reviews(winner_id))
+
+    #print the new message
+    msg = slack_format.format_restaurant(winner_arr, winner_review)
+
+    ret = send_message(channel, **msg)
+    #cache_votes_info(ret["ts"], ret["channel"])
