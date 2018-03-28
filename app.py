@@ -136,21 +136,6 @@ def message_actions():
 
     return okay()
 
-# requires 'message' scope
-@slack_events_adapter.on("message")
-@reject_repeats
-def handle_message(event_data):
-    message = event_data["event"]
-    if message.get("subtype") is None and not message.get("text") is None:
-        #ts = get_ts()
-        text = message["text"]
-        channel_id = message["channel"]
-        user = message["user"]
-        #general_con = Access_General(channel_id)
-        #general_con.set_ts(message["ts"])
-        print(event_data)
-    return okay()
-
 # handles when bots name is mentioned
 @slack_events_adapter.on("app_mention")
 @reject_repeats
@@ -205,23 +190,23 @@ def search(channel, term="lunch", location="pittsburgh, pa"):
     invoker_con = Access_Invoker(channel)
     bid_con = Access_Business_IDs(channel)
     general_con = Access_General(channel)
-        
+
     business_ids = bid_con.get_business_ids()
     if not business_ids:
         limit = 50      # 50 is the maximum we can request for
         search_results = yelp_api.search(term, location, limit)
         business_ids = [res["id"] for res in search_results["businesses"]]
-    
-    partial_ids, business_ids = ReRoll(business_ids).reroll()  
+
+    partial_ids, business_ids = ReRoll(business_ids).reroll()
     bid_con.create_business_ids(business_ids)
-    
+
     restaurants_arr = []
     reviews_arr = []
     for restaurant_id in partial_ids:
         restaurants_arr.append(yelp_api.get_business(restaurant_id))
         reviews_arr.append(yelp_api.get_reviews(restaurant_id))
-    msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)  
-    
+    msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)
+
     ret = send_message(channel, **msg)
     vote_con.create_votes_info(str(ret["ts"]), msg)
 
