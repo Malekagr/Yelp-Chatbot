@@ -28,7 +28,7 @@ def parse_command(msg=""):
         ret["bot"] = tokens[0]
     elif tokens[1] == "poll":
         ret["type"] = "poll"
-        ret["terms"] = ' '.join(tokens[2:]) if len(tokens) > 2 else "lunch"
+        ret["terms"] = ' '.join(tokens[2:]) if len(tokens) > 2 else ""
         ret["bot"] = tokens[0]
     else:
         ret["type"] = "help"
