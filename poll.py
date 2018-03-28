@@ -49,7 +49,6 @@ class Poll(object):
             votes[k] = round(v * 1.0 / total, 2)
         return votes
     
-    #return the places with the most votes, and randomly select one of the places if two have tied votes.
     @staticmethod
     def get_winner(user_votes={}):
         restaurant_votes = Poll.get_restaurant_votes(user_votes)
@@ -79,7 +78,7 @@ class Finalize(object):
         s = ""
         for k,v in probs.items():
             s += "{0} has probability of {1}% to be chosen\n".format(k, v*100)
-        return s+"""The Chosen restaurant is: {0}""".format(winner)
+        return s, winner
 
     
 class ReRoll(object):
