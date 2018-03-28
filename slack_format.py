@@ -25,7 +25,7 @@ def format_with_vote_button(restaurant, reviews):
     "value": restaurant["name"],
     "type": "button"
   }]
-  formatted["fields"].append({"title": "Votes:", "value": 0})
+  formatted["fields"].append({"title": "Votes: 0"})
   return formatted
 
 # takes in the result of 2 Yelp API calls
