@@ -21,7 +21,7 @@ class Poll(object):
         if "attachments" in self._slack_msg:
             for att in self._slack_msg["attachments"]:
                 restaurant_name = cgi.escape(att["actions"][0]["value"])
-                att["fields"][2]["title"] = "Votes: " (self._votes.get(restaurant_name) if restaurant_name in self._votes else 0)
+                att["fields"][2]["title"] = "Votes: " + (self._votes.get(restaurant_name) if restaurant_name in self._votes else 0)
 
     def get_updated_attachments(self):
         return self._slack_msg
