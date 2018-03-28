@@ -81,7 +81,6 @@ class Finalize(object):
             s += "{0} has probability of {1}% to be chosen\n".format(k, v*100)
         return s, winner
 
-
 class ReRoll(object):
     def __init__(self, list_of_ids):
         self._id_list = list_of_ids
