@@ -96,7 +96,8 @@ def message_actions():
             #print("user_votes=", vote_con.get_user_votes())
             slack_client.api_call("chat.delete", channel=channel_id, ts=vote_con.get_votes_ts())
             slack_client.api_call("chat.postMessage", channel=channel_id, text=conclusion)
-            slack_client.api_call("chat.postMessage", channel=channel_id, text="The chosen winner is: {}".format(winner))
+            if winner:
+                slack_client.api_call("chat.postMessage", channel=channel_id, text="The chosen winner is: {}".format(winner))
             invoker_con.delete()
             vote_con.delete()
             bid_con.delete()
@@ -178,27 +179,35 @@ def bot_invoked(event_data):
             print("Received message too old!")
             return okay()
 
-        if invoked_ts != None and float(invoked_ts) > 0:
-            print("There is an ongoing poll")
-            send_busy_message(invoked_channel, slack_client)
-            return okay()
         
         command_info = parse_command(text)
         ap_con = Access_Poll(channel_id)
     
         if command_info["type"] == "location":       
+            slack_client.api_call("chat.postMessage", channel=channel_id, text="Location has been set to {}".format(command_info["location"]))
             ap_con.create_poll_info(locations=command_info["location"])
         
         elif command_info["type"] == "poll":
-            if command_info["terms"] != '':
-                ap_con.create_poll_info(locations=command_info["terms"])
-            search(channel_id, term=ap_con.get_terms(), location=ap_con.get_locations())
+            # don't proceed if there's an ongoing poll
+            if invoked_ts != None and float(invoked_ts) > 0:
+                print("There is an ongoing poll")
+                send_busy_message(invoked_channel, slack_client)
+                return okay()
+            # renew the terms value if any
+            ap_con.create_poll_info(terms=command_info["terms"])
+            terms = ap_con.get_terms()
+            location = ap_con.get_locations()
+            # send the searching indication message
+            slack_client.api_call("chat.postMessage", channel=channel_id, text="Searching for {} in {}...".format(terms, location))
+            # send the actual search with options and buttons
+            search(channel_id, term=terms, location=location)
+            # set the message timestamp value
             general_con.create_general_info(message["ts"])
             ret = send_invoker_options(user, channel_id, slack_client)
             invoker_con.create_invoker_info(user, ret["message_ts"])
         
         else:
-            send_help(bot_name="yelp_chatbot", channel_id=channel_id, slack_client=slack_client)        
+            send_help(bot_name="yoshinobot", channel_id=channel_id, slack_client=slack_client)        
 
     return okay()
 
