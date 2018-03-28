@@ -317,7 +317,11 @@ class Access_Poll(object):
             self._update_row_values()  
             self._update_existing_channel_list()
         else:
-            print("channel name already exists")
+            if terms != '':
+                self.set_terms(terms)
+            if locations != '':
+                self.set_locations(locations)
+            #print("channel name already exists")
             
     def set_terms(self, terms=""):
         if self._values:
