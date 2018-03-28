@@ -317,13 +317,13 @@ class Access_Poll(object):
             self._update_row_values()  
             self._update_existing_channel_list()
         else:
-            if terms != '':
-                self.set_terms(terms)
-            if locations != '':
-                self.set_locations(locations)
-            #print("channel name already exists")
+            self.set_terms(terms)
+            self.set_locations(locations)
+            print("channel name already exists")
             
     def set_terms(self, terms=""):
+        if not terms.rstrip():
+            return
         if self._values:
             # if the list is not empty, i.e. row exists
             cur.execute('''UPDATE "Poll_Info" SET "terms" = %s WHERE "poll_channel" = %s''' , (str(terms), self._channel))
@@ -337,6 +337,8 @@ class Access_Poll(object):
             return ""
     
     def set_locations(self, locations=""):
+        if not locations.rstrip():
+            return
         if self._values:
             # if the list is not empty, i.e. row exists
             cur.execute('''UPDATE "Poll_Info" SET "locations" = %s WHERE "poll_channel" = %s''' , (str(locations), self._channel))
