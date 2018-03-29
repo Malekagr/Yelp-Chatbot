@@ -185,9 +185,8 @@ def bot_invoked(event_data):
             search(channel_id, term=terms, location=location)
             # set the message timestamp value
             general_con.create_general_info(message["ts"])
-            ret = send_invoker_options(user, channel_id, slack_client)
+            ret = static_messages.send_invoker_options(user, channel_id, slack_client)
             invoker_con.create_invoker_info(user, ret["message_ts"])
-
         else:
             send_help(bot_name="<@U97SKLZCJ>", channel_id=channel_id, slack_client=slack_client)
 
