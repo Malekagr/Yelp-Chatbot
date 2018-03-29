@@ -1,14 +1,10 @@
 import click, os, sys, json
 import psycopg2
-import slack_format
-from slackclient import SlackClient
-from slackeventsapi import SlackEventAdapter
+import slack_format, static_messages
+import slackclient, slackeventsapi, yelp
 from flask import Flask, make_response, Response, request
-from yelp import YelpAPI
 from poll import Poll, Finalize, ReRoll
-from Invoker_Options import send_invoker_options
-from Busy_Message import send_busy_message
-from Access_Database import Access_Votes, Access_Invoker, Access_Business_IDs, Access_General
+from database import AccessVotes, AccessInvoker, AccessBusinessIDs, AccessGeneral
 from functools import wraps
 
 ##### SETUP
@@ -22,9 +18,9 @@ for var in env_vars:
         print("Could not load environment variable {}".format(var))
         sys.exit()
 
-slack_client = SlackClient(app.config["SLACK_BOT_TOKEN"])
-slack_events_adapter = SlackEventAdapter(app.config["SLACK_VERIFICATION_TOKEN"], endpoint="/slack/events", server=app)
-yelp_api = YelpAPI(app.config["YELP_API_KEY"])
+slack_client = slackclient.SlackClient(app.config["SLACK_BOT_TOKEN"])
+slack_events_adapter = slackeventsapi.SlackEventAdapter(app.config["SLACK_VERIFICATION_TOKEN"], endpoint="/slack/events", server=app)
+yelp_api = yelp.YelpAPI(app.config["YELP_API_KEY"])
 db_conn = psycopg2.connect(app.config["DATABASE_URL"])
 
 # wrapper to filter out retries
@@ -60,10 +56,10 @@ def message_actions():
     selection = form_json["actions"][0]["value"]
     message_ts = form_json["message_ts"]
 
-    vote_con = Access_Votes(channel_id)
-    invoker_con = Access_Invoker(channel_id)
-    bid_con = Access_Business_IDs(channel_id)
-    general_con = Access_General(channel_id)
+    vote_con = AccessVotes(channel_id, db_conn)
+    invoker_con = AccessInvoker(channel_id, db_conn)
+    bid_con = AccessBusinessIDs(channel_id, db_conn)
+    general_con = AccessGeneral(channel_id, db_conn)
 
     print("callback_id=", callback_id)
 
@@ -147,10 +143,10 @@ def bot_invoked(event_data):
         channel_id = message["channel"]
         user = message["user"]
 
-        vote_con = Access_Votes(channel_id)
-        invoker_con = Access_Invoker(channel_id)
-        bid_con = Access_Business_IDs(channel_id)
-        general_con = Access_General(channel_id)
+        vote_con = AccessVotes(channel_id, db_conn)
+        invoker_con = AccessInvoker(channel_id, db_conn)
+        bid_con = AccessBusinessIDs(channel_id, db_conn)
+        general_con = AccessGeneral(channel_id, db_conn)
 
         invoker_id = invoker_con.get_invoker_id()
         invoked_channel = channel_id
@@ -163,12 +159,12 @@ def bot_invoked(event_data):
 
         if invoked_ts != None and float(invoked_ts) > 0:
             print("There is an ongoing poll")
-            send_busy_message(invoked_channel, slack_client)
+            static_messages.send_busy_message(invoked_channel, slack_client)
             return okay()
 
         search(channel_id)
         general_con.create_general_info(message["ts"])
-        ret = send_invoker_options(user, channel_id, slack_client)
+        ret = static_messages.send_invoker_options(user, channel_id, slack_client)
         invoker_con.create_invoker_info(user, ret["message_ts"])
 
     return okay()
@@ -186,10 +182,10 @@ def update_message(channel, ts, **msg):
     return slack_client.api_call("chat.update", channel=channel, ts=ts, **msg)
 
 def search(channel, term="lunch", location="pittsburgh, pa"):
-    vote_con = Access_Votes(channel)
-    invoker_con = Access_Invoker(channel)
-    bid_con = Access_Business_IDs(channel)
-    general_con = Access_General(channel)
+    vote_con = AccessVotes(channel, db_conn)
+    invoker_con = AccessInvoker(channel, db_conn)
+    bid_con = AccessBusinessIDs(channel, db_conn)
+    general_con = AccessGeneral(channel, db_conn)
 
     business_ids = bid_con.get_business_ids()
     if not business_ids:
