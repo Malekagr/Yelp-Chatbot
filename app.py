@@ -6,9 +6,8 @@ from flask import Flask, make_response, Response, request
 from poll import Poll, Finalize, ReRoll
 from database import AccessVotes, AccessInvoker, AccessBusinessIDs, AccessGeneral, AccessPoll
 from functools import wraps
+from command_line import parse_command, send_help
 
-#### ========
-from Command_Line_Feature import parse_command, send_help
 
 ##### SETUP
 app = Flask(__name__)
@@ -89,9 +88,8 @@ def message_actions():
             return okay()
 
         if selection == "finalize":
-          # finalize votes
+            # finalize votes
             conclusion, winner = Finalize.conclude(vote_con.get_user_votes())
-            #print("user_votes=", vote_con.get_user_votes())
             slack_client.api_call("chat.delete", channel=channel_id, ts=vote_con.get_votes_ts())
             slack_client.api_call("chat.postMessage", channel=channel_id, text=conclusion)
             if winner:
@@ -130,9 +128,7 @@ def message_actions():
 
         elif selection == "cancel":
             # cancel voting session
-            #print("user_votes=", vote_con.get_user_votes())
             slack_client.api_call("chat.postMessage", channel=str(channel_id), text="Voting session canceled")
-            #print("Attempting to delete message at", vote_con.get_votes_ts(), "in", channel_id)
             slack_client.api_call("chat.delete", channel=str(channel_id), ts=vote_con.get_votes_ts())
             invoker_con.delete()
             vote_con.delete()
@@ -210,19 +206,11 @@ def update_message(channel, ts, **msg):
     return slack_client.api_call("chat.update", channel=channel, ts=ts, **msg)
 
 def search(channel, term="lunch", location="pittsburgh, pa"):
-<<<<<<< HEAD
-    vote_con = Access_Votes(channel)
-    invoker_con = Access_Invoker(channel)
-    bid_con = Access_Business_IDs(channel)
-    general_con = Access_General(channel)
-
-=======
     vote_con = AccessVotes(channel, db_conn)
     invoker_con = AccessInvoker(channel, db_conn)
     bid_con = AccessBusinessIDs(channel, db_conn)
     general_con = AccessGeneral(channel, db_conn)
 
->>>>>>> master
     business_ids = bid_con.get_business_ids()
     if not business_ids:
         limit = 50      # 50 is the maximum we can request for
@@ -256,4 +244,3 @@ def print_winner(channel, winner_id):
     msg = slack_format.format_restaurant(winner_arr, winner_review)
 
     ret = send_message(channel, **msg)
-    #cache_votes_info(ret["ts"], ret["channel"])
