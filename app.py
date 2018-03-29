@@ -163,7 +163,7 @@ def bot_invoked(event_data):
             return okay()
 
         command_info = parse_command(text)
-        ap_con = AccessPoll(channel_id)
+        ap_con = AccessPoll(channel_id, db_conn)
 
         if command_info["type"] == "location":
             slack_client.api_call("chat.postMessage", channel=channel_id, text="Location has been set to {}".format(command_info["location"]))
