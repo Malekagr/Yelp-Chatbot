@@ -1,16 +1,14 @@
 import click, os, sys, json
 import psycopg2
-import slack_format
-from slackclient import SlackClient
-from slackeventsapi import SlackEventAdapter
+import slack_format, static_messages
+import slackclient, slackeventsapi, yelp
 from flask import Flask, make_response, Response, request
-from yelp import YelpAPI
 from poll import Poll, Finalize, ReRoll
-from Invoker_Options import send_invoker_options
-from Busy_Message import send_busy_message
-from Access_Database import Access_Votes, Access_Invoker, Access_Business_IDs, Access_General, Access_Poll
-from Command_Line_Feature import parse_command, send_help
+from database import AccessVotes, AccessInvoker, AccessBusinessIDs, AccessGeneral, AccessPoll
 from functools import wraps
+
+#### ========
+from Command_Line_Feature import parse_command, send_help
 
 ##### SETUP
 app = Flask(__name__)
@@ -23,9 +21,9 @@ for var in env_vars:
         print("Could not load environment variable {}".format(var))
         sys.exit()
 
-slack_client = SlackClient(app.config["SLACK_BOT_TOKEN"])
-slack_events_adapter = SlackEventAdapter(app.config["SLACK_VERIFICATION_TOKEN"], endpoint="/slack/events", server=app)
-yelp_api = YelpAPI(app.config["YELP_API_KEY"])
+slack_client = slackclient.SlackClient(app.config["SLACK_BOT_TOKEN"])
+slack_events_adapter = slackeventsapi.SlackEventAdapter(app.config["SLACK_VERIFICATION_TOKEN"], endpoint="/slack/events", server=app)
+yelp_api = yelp.YelpAPI(app.config["YELP_API_KEY"])
 db_conn = psycopg2.connect(app.config["DATABASE_URL"])
 
 # wrapper to filter out retries
@@ -61,10 +59,10 @@ def message_actions():
     selection = form_json["actions"][0]["value"]
     message_ts = form_json["message_ts"]
 
-    vote_con = Access_Votes(channel_id)
-    invoker_con = Access_Invoker(channel_id)
-    bid_con = Access_Business_IDs(channel_id)
-    general_con = Access_General(channel_id)
+    vote_con = AccessVotes(channel_id, db_conn)
+    invoker_con = AccessInvoker(channel_id, db_conn)
+    bid_con = AccessBusinessIDs(channel_id, db_conn)
+    general_con = AccessGeneral(channel_id, db_conn)
 
     print("callback_id=", callback_id)
 
@@ -119,7 +117,7 @@ def message_actions():
                 bid_con.set_business_ids(business_ids)
             # wipes out all votes
             vote_con.reset_user_votes()
-            
+
             restaurants_arr = []
             reviews_arr = []
             for restaurant_id in list_of_ids:
@@ -142,20 +140,6 @@ def message_actions():
 
     return okay()
 
-# requires 'message' scope
-@slack_events_adapter.on("message")
-@reject_repeats
-def handle_message(event_data):
-    message = event_data["event"]
-    if message.get("subtype") is None and not message.get("text") is None:
-        #ts = get_ts()
-        text = message["text"]
-        channel_id = message["channel"]
-        user = message["user"]
-        #general_con = Access_General(channel_id)
-        #general_con.set_ts(message["ts"])
-        print(event_data)
-    return okay()
 
 # handles when bots name is mentioned
 @slack_events_adapter.on("app_mention")
@@ -168,10 +152,10 @@ def bot_invoked(event_data):
         channel_id = message["channel"]
         user = message["user"]
 
-        vote_con = Access_Votes(channel_id)
-        invoker_con = Access_Invoker(channel_id)
-        bid_con = Access_Business_IDs(channel_id)
-        general_con = Access_General(channel_id)
+        vote_con = AccessVotes(channel_id, db_conn)
+        invoker_con = AccessInvoker(channel_id, db_conn)
+        bid_con = AccessBusinessIDs(channel_id, db_conn)
+        general_con = AccessGeneral(channel_id, db_conn)
 
         invoker_id = invoker_con.get_invoker_id()
         invoked_channel = channel_id
@@ -182,14 +166,13 @@ def bot_invoked(event_data):
             print("Received message too old!")
             return okay()
 
-        
         command_info = parse_command(text)
-        ap_con = Access_Poll(channel_id)
-    
-        if command_info["type"] == "location":       
+        ap_con = AccessPoll(channel_id)
+
+        if command_info["type"] == "location":
             slack_client.api_call("chat.postMessage", channel=channel_id, text="Location has been set to {}".format(command_info["location"]))
             ap_con.create_poll_info(locations=command_info["location"])
-        
+
         elif command_info["type"] == "poll":
             # don't proceed if there's an ongoing poll
             if invoked_ts != None and float(invoked_ts) > 0:
@@ -208,9 +191,9 @@ def bot_invoked(event_data):
             general_con.create_general_info(message["ts"])
             ret = send_invoker_options(user, channel_id, slack_client)
             invoker_con.create_invoker_info(user, ret["message_ts"])
-        
+
         else:
-            send_help(bot_name="yoshinobot", channel_id=channel_id, slack_client=slack_client)        
+            send_help(bot_name="<@U97SKLZCJ>", channel_id=channel_id, slack_client=slack_client)
 
     return okay()
 
@@ -227,27 +210,35 @@ def update_message(channel, ts, **msg):
     return slack_client.api_call("chat.update", channel=channel, ts=ts, **msg)
 
 def search(channel, term="lunch", location="pittsburgh, pa"):
+<<<<<<< HEAD
     vote_con = Access_Votes(channel)
     invoker_con = Access_Invoker(channel)
     bid_con = Access_Business_IDs(channel)
     general_con = Access_General(channel)
-        
+
+=======
+    vote_con = AccessVotes(channel, db_conn)
+    invoker_con = AccessInvoker(channel, db_conn)
+    bid_con = AccessBusinessIDs(channel, db_conn)
+    general_con = AccessGeneral(channel, db_conn)
+
+>>>>>>> master
     business_ids = bid_con.get_business_ids()
     if not business_ids:
         limit = 50      # 50 is the maximum we can request for
         search_results = yelp_api.search(term, location, limit)
         business_ids = [res["id"] for res in search_results["businesses"]]
-    
-    partial_ids, business_ids = ReRoll(business_ids).reroll()  
+
+    partial_ids, business_ids = ReRoll(business_ids).reroll()
     bid_con.create_business_ids(business_ids)
-    
+
     restaurants_arr = []
     reviews_arr = []
     for restaurant_id in partial_ids:
         restaurants_arr.append(yelp_api.get_business(restaurant_id))
         reviews_arr.append(yelp_api.get_reviews(restaurant_id))
-    msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)  
-    
+    msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)
+
     ret = send_message(channel, **msg)
     vote_con.create_votes_info(str(ret["ts"]), msg)
 

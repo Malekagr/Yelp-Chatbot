@@ -5,7 +5,7 @@ def send_help(channel_id, slack_client, bot_name="yelp_chatbot"):
     Hi! I'm the {0}. I can be used to search for local restaurants and help your group decide where to get food.
         •`{0} location city/zip-code/address` *sets the location* for a channel.
         •`{0} help` will display this *help message.*
-        •`{0} poll [search terms, optional]` will *start a poll.*    
+        •`{0} poll [search terms, optional]` will *start a poll.*
     '''.format(displayed_bot_name)
     slack_client.api_call("chat.postMessage", channel=channel_id, text=msg)
 
