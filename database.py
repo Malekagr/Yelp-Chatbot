@@ -87,6 +87,12 @@ class AccessVotes(object):
             #print("Failed")
             return {}
 
+    def reset_user_votes(self):
+        if self._values:
+            self._cur.execute('''UPDATE "Votes_Info" SET "user_votes" = %s WHERE votes_channel = %s''', (str({}), self._channel, ))
+            self._conn.commit()
+            self._update_row_values()
+
     def delete(self):
         if self._values:
             self._cur.execute(self._delete_query, (self._channel,))
