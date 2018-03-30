@@ -95,7 +95,7 @@ def message_actions():
             slack_client.api_call("chat.postMessage", channel=channel_id, text=conclusion)
             if winner:
                 #slack_client.api_call("chat.postMessage", channel=channel_id, text="The chosen winner is: {}".format(winner))
-                print_winner(winner)
+                print_winner(channel_id, winner)
             invoker_con.delete()
             vote_con.delete()
             bid_con.delete()
@@ -232,15 +232,18 @@ def search(channel, term="lunch", location="pittsburgh, pa"):
     vote_con.create_votes_info(str(ret["ts"]), msg)
 
 def print_winner(channel, winner_id):
+    #arrays used to pass into the format_restaurant method
+    winner_arr = []
+    winner_review = []
+
     #winner_id used for identifying which resturant to display
     #build the arrays to pass into printing the new message
-    winner_business = yelp_api.get_business(winner_id)
-    winner_reviews = yelp_api.get_reviews(winner_id)
+    winner_arr.append(yelp_api.get_business(winner_id))
+    winner_review.append(yelp_api.get_reviews(winner_id))
 
     #print the new message
-    msg = slack_format.format_restaurant(winner_business, winner_review)
-
-    ret = send_message(channel, **msg)
+    msg = slack_format.build_normal_message(winner_arr, winner_review)
+    return send_message(channel, **msg)
     
 def extract_restaurants_from_attachments(att=""):
     try:
