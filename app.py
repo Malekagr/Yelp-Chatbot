@@ -1,4 +1,4 @@
-import click, os, sys, json
+import click, os, sys, json, ast
 import psycopg2
 import slack_format, static_messages
 import slackclient, slackeventsapi, yelp
@@ -89,7 +89,8 @@ def message_actions():
 
         if selection == "finalize":
             # finalize votes
-            conclusion, winner = Finalize.conclude(vote_con.get_user_votes())
+            all_restaurants_list = extract_restaurants_from_attachments(vote_con.get_msg_attachments())
+            conclusion, winner = Finalize.conclude(vote_con.get_user_votes(), all_restaurants_list)
             slack_client.api_call("chat.delete", channel=channel_id, ts=vote_con.get_votes_ts())
             slack_client.api_call("chat.postMessage", channel=channel_id, text=conclusion)
             if winner:
@@ -173,7 +174,7 @@ def bot_invoked(event_data):
             # don't proceed if there's an ongoing poll
             if invoked_ts != None and float(invoked_ts) > 0:
                 print("There is an ongoing poll")
-                send_busy_message(invoked_channel, slack_client)
+                static_messages.send_busy_message(invoked_channel, slack_client)
                 return okay()
             # renew the terms value if any
             ap_con.create_poll_info(terms=command_info["terms"])
@@ -188,7 +189,7 @@ def bot_invoked(event_data):
             ret = static_messages.send_invoker_options(user, channel_id, slack_client)
             invoker_con.create_invoker_info(user, ret["message_ts"])
         else:
-            send_help(bot_name="<@U97SKLZCJ>", channel_id=channel_id, slack_client=slack_client)
+            send_help(bot_name="yoshinobot", channel_id=channel_id, slack_client=slack_client)
 
     return okay()
 
@@ -243,3 +244,11 @@ def print_winner(channel, winner_id):
     msg = slack_format.format_restaurant(winner_arr, winner_review)
 
     ret = send_message(channel, **msg)
+    
+def extract_restaurants_from_attachments(att=""):
+    try:
+        #print(att)
+        ret = ast.literal_eval(str(att))
+        return list(r['actions'][0]['value'] for r in ret['attachments'])
+    except:
+        print("failed to extract")
