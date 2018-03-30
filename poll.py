@@ -71,15 +71,25 @@ class Poll(object):
 
 class Finalize(object):
     @staticmethod
-    def conclude(user_votes={}):
-        if len(user_votes) == 0:
+    def conclude(user_votes={}, all_res=[]):
+        # all_res: the names/ids of the current displayed restaurants
+        if all_res is None:
+            all_res = []
+        if len(user_votes) == 0 and len(all_res) == 0:
             return "No one voted!", None
-        probs = Poll.get_probabilities(user_votes)
-        winner = Poll.get_winner(user_votes)
-        s = ""
-        for k,v in probs.items():
-            s += "{0} has probability of {1}% to be chosen\n".format(k, v*100)
-        return s, winner
+        elif len(user_votes) > 0:
+            probs = Poll.get_probabilities(user_votes)
+            winner = Poll.get_winner(user_votes)
+            s = ""
+            for k,v in probs.items():
+                s += "{0} has probability of {1}% to be chosen\n".format(k, v*100)
+            return s, winner
+        else:
+            s = "Since no one has voted, I'll randomly suggest one.\n"
+            random.shuffle(all_res)
+            winner = all_res[0]
+            return s, winner
+
 
 class ReRoll(object):
     def __init__(self, list_of_ids):
