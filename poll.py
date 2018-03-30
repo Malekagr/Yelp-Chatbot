@@ -71,10 +71,11 @@ class Poll(object):
 
 class Finalize(object):
     @staticmethod
-    def conclude(user_votes={}, all_res=[]):
+    def conclude(user_votes={}, all_res={}):
+        print(all_res)
         # all_res: the names/ids of the current displayed restaurants
         if all_res is None:
-            all_res = []
+            all_res = {}
         if len(user_votes) == 0 and len(all_res) == 0:
             return "No one voted!", None
         elif len(user_votes) > 0:
@@ -82,12 +83,13 @@ class Finalize(object):
             winner = Poll.get_winner(user_votes)
             s = ""
             for k,v in probs.items():
-                s += "{0} has probability of {1}% to be chosen\n".format(k, v*100)
+                s += "{0} has probability of {1}% to be chosen\n".format(all_res.get(k), v*100)
             return s, winner
         else:
             s = "Since no one has voted, I'll randomly suggest one.\n"
-            random.shuffle(all_res)
-            winner = all_res[0]
+            res_names = list(all_res.keys())
+            random.shuffle(res_names)
+            winner = res_names[0]
             return s, winner
 
 
