@@ -22,7 +22,7 @@ def format_with_vote_button(restaurant, reviews):
   formatted["actions"] = [{
     "name": "vote",
     "text": "Vote!",
-    "value": restaurant["name"],
+    "value": restaurant["id"],
     "type": "button"
   }]
   formatted["fields"].append({"title": "Votes: 0"})
