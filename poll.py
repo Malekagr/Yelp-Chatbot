@@ -72,8 +72,7 @@ class Poll(object):
 class Finalize(object):
     @staticmethod
     def conclude(user_votes={}, all_res={}):
-        print(all_res)
-        # all_res: the names/ids of the current displayed restaurants
+        # all_res: the {id: name} of the current displayed restaurants
         if all_res is None:
             all_res = {}
         if len(user_votes) == 0 and len(all_res) == 0:
