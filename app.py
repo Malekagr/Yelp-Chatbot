@@ -89,8 +89,8 @@ def message_actions():
 
         if selection == "finalize":
             # finalize votes
-            all_restaurants_list = extract_restaurants_from_attachments(vote_con.get_msg_attachments())
-            conclusion, winner = Finalize.conclude(vote_con.get_user_votes(), all_restaurants_list)
+            all_restaurants_dict = extract_restaurants_from_attachments(vote_con.get_msg_attachments())
+            conclusion, winner = Finalize.conclude(vote_con.get_user_votes(), all_restaurants_dict)
             slack_client.api_call("chat.delete", channel=channel_id, ts=vote_con.get_votes_ts())
             slack_client.api_call("chat.postMessage", channel=channel_id, text=conclusion)
             if winner:
@@ -190,7 +190,7 @@ def bot_invoked(event_data):
             ret = static_messages.send_invoker_options(user, channel_id, slack_client)
             invoker_con.create_invoker_info(user, ret["message_ts"])
         else:
-            send_help(channel_id=channel_id, slack_client=slack_client)
+            send_help(bot_name="yoshinobot", channel_id=channel_id, slack_client=slack_client)
 
     return okay()
 
@@ -247,8 +247,9 @@ def print_winner(channel, winner_id):
     
 def extract_restaurants_from_attachments(att=""):
     try:
-        #print(att)
         ret = ast.literal_eval(str(att))
-        return list(r['actions'][0]['value'] for r in ret['attachments'])
+        names = list(r['actions'][0]['name'] for r in ret['attachments'])
+        ids = list(r['actions'][0]['value'] for r in ret['attachments'])
+        return {k:v for k,v in zip(ids, names)}
     except:
         print("failed to extract")
