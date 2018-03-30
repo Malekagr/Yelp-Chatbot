@@ -238,7 +238,7 @@ def print_winner(channel, winner_id):
     winner_reviews = yelp_api.get_reviews(winner_id)
 
     #print the new message
-    msg = slack_format.format_restaurant(winner_arr, winner_review)
+    msg = slack_format.format_restaurant(winner_business, winner_review)
 
     ret = send_message(channel, **msg)
     
