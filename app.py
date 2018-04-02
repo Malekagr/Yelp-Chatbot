@@ -108,7 +108,7 @@ def message_actions():
                 bid_con.set_business_ids([])
             elif len(business_ids) <= 0:
                 print("out of ids")
-                slack_client("chat.postMessage", channel=channel_id, text="There are no more restaurants to reroll.")
+                slack_client.api_call("chat.postMessage", channel=channel_id, text="There are no more restaurants to reroll.")
                 # don't make any modification to the current poll
                 return okay()
             else:
