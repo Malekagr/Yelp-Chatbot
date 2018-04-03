@@ -2,10 +2,12 @@ def send_help(channel_id, slack_client, bot_name="yelp_chatbot"):
     bot_id = get_bot_id(slack_client, bot_name)
     displayed_bot_name = "@{}".format(bot_name) if bot_id is None else "<@{}>".format(bot_id)
     msg = '''
-    Hi! I'm the {0}. I can be used to search for local restaurants and help your group decide where to get food.
+    Hi! I'm the {0}. I can be used to search for local restaurants and help your group decide where to get food. 
+    Here are helpful commands to start the restaurant search:
         •`{0} location city/zip-code/address` *sets the location* for a channel.
         •`{0} help` will display this *help message.*
         •`{0} poll [search terms, optional]` will *start a poll.*
+    Yelp Chatbot uses a roulette system, meaning any displayed restaurant that has at least one vote can win. 
     '''.format(displayed_bot_name)
     slack_client.api_call("chat.postMessage", channel=channel_id, text=msg)
 
