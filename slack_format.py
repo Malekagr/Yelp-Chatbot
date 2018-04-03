@@ -13,6 +13,13 @@ def build_vote_message(restaurant_arr, reviews_arr):
       restaurant_arr[i], reviews_arr[i]))
   return msg
 
+def build_normal_message(restaurant_arr, reviews_arr, text=""):
+    msg = {"text": text, "attachments": []}
+    for i in range(len(restaurant_arr)):
+        msg["attachments"].append(format_restaurant(
+        restaurant_arr[i], reviews_arr[i]))
+    return msg
+
 # formats the given restaurant and review message
 # uses format_restaurant
 # adds necessary voting bits
@@ -20,9 +27,9 @@ def format_with_vote_button(restaurant, reviews):
   formatted = format_restaurant(restaurant, reviews)
   formatted["callback_id"] = "vote"
   formatted["actions"] = [{
-    "name": "vote",
+    "name": restaurant["name"],
     "text": "Vote!",
-    "value": restaurant["name"],
+    "value": restaurant["id"],
     "type": "button"
   }]
   formatted["fields"].append({"title": "Votes: 0"})

@@ -1,4 +1,4 @@
-import click, os, sys, json
+import click, os, sys, json, ast
 import psycopg2
 import slack_format, static_messages
 import slackclient, slackeventsapi, yelp
@@ -89,11 +89,13 @@ def message_actions():
 
         if selection == "finalize":
             # finalize votes
-            conclusion, winner = Finalize.conclude(vote_con.get_user_votes())
+            all_restaurants_dict = extract_restaurants_from_attachments(vote_con.get_msg_attachments())
+            conclusion, winner = Finalize.conclude(vote_con.get_user_votes(), all_restaurants_dict)
             slack_client.api_call("chat.delete", channel=channel_id, ts=vote_con.get_votes_ts())
             slack_client.api_call("chat.postMessage", channel=channel_id, text=conclusion)
             if winner:
-                slack_client.api_call("chat.postMessage", channel=channel_id, text="The chosen winner is: {}".format(winner))
+                #slack_client.api_call("chat.postMessage", channel=channel_id, text="The chosen winner is: {}".format(winner))
+                print_winner(channel_id, winner)
             invoker_con.delete()
             vote_con.delete()
             bid_con.delete()
@@ -106,7 +108,7 @@ def message_actions():
                 bid_con.set_business_ids([])
             elif len(business_ids) <= 0:
                 print("out of ids")
-                slack_client("chat.postMessage", channel=channel_id, text="There are no more restaurants to reroll.")
+                slack_client.api_call("chat.postMessage", channel=channel_id, text="There are no more restaurants to reroll.")
                 # don't make any modification to the current poll
                 return okay()
             else:
@@ -173,7 +175,7 @@ def bot_invoked(event_data):
             # don't proceed if there's an ongoing poll
             if invoked_ts != None and float(invoked_ts) > 0:
                 print("There is an ongoing poll")
-                send_busy_message(invoked_channel, slack_client)
+                static_messages.send_busy_message(invoked_channel, slack_client)
                 return okay()
             # renew the terms value if any
             ap_con.create_poll_info(terms=command_info["terms"])
@@ -188,7 +190,7 @@ def bot_invoked(event_data):
             ret = static_messages.send_invoker_options(user, channel_id, slack_client)
             invoker_con.create_invoker_info(user, ret["message_ts"])
         else:
-            send_help(bot_name="<@U97SKLZCJ>", channel_id=channel_id, slack_client=slack_client)
+            send_help(channel_id=channel_id, slack_client=slack_client)
 
     return okay()
 
@@ -240,6 +242,14 @@ def print_winner(channel, winner_id):
     winner_review.append(yelp_api.get_reviews(winner_id))
 
     #print the new message
-    msg = slack_format.format_restaurant(winner_arr, winner_review)
-
-    ret = send_message(channel, **msg)
+    msg = slack_format.build_normal_message(winner_arr, winner_review)
+    return send_message(channel, **msg)
+    
+def extract_restaurants_from_attachments(att=""):
+    try:
+        ret = ast.literal_eval(str(att))
+        names = list(r['actions'][0]['name'] for r in ret['attachments'])
+        ids = list(r['actions'][0]['value'] for r in ret['attachments'])
+        return {k:v for k,v in zip(ids, names)}
+    except:
+        print("failed to extract")
