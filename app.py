@@ -32,6 +32,9 @@ def reject_repeats(f1):
         if "X-Slack-Retry-Num" in request.headers and int(request.headers["X-Slack-Retry-Num"]) > 1:
             print("Caught and blocked a retry - retry reason ({})".format(request.headers["X-Slack-Retry-Reason"]))
             return okay()
+        if "X-Slack-Retry-Reason" in request.headers and request.headers["X-Slack-Retry-Reason"] == "http_timeout":
+            print("ignored http_timeout request")
+            return okay()
         return f1(*args, **kwargs)
     return f2
 
