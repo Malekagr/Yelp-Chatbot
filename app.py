@@ -183,12 +183,15 @@ def bot_invoked(event_data):
             location = ap_con.get_locations()
             # send the searching indication message
             slack_client.api_call("chat.postMessage", channel=channel_id, text="Searching for {} in {}...".format(terms, location))
-            # send the actual search with options and buttons
-            search(channel_id, term=terms, location=location)
+            
             # set the message timestamp value
             general_con.create_general_info(message["ts"])
-            ret = static_messages.send_invoker_options(user, channel_id, slack_client)
-            invoker_con.create_invoker_info(user, ret["message_ts"])
+            if search(channel_id, term=terms, location=location):   
+                # if the search was successful
+                # i.e. there was at least one opened place found
+                # send the actual search with options and buttons
+                ret = static_messages.send_invoker_options(user, channel_id, slack_client)
+                invoker_con.create_invoker_info(user, ret["message_ts"])
         else:
             send_help(channel_id=channel_id, slack_client=slack_client)
 
@@ -227,9 +230,14 @@ def search(channel, term="lunch", location="pittsburgh, pa"):
         restaurants_arr.append(yelp_api.get_business(restaurant_id))
         reviews_arr.append(yelp_api.get_reviews(restaurant_id))
     msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)
-
-    ret = send_message(channel, **msg)
-    vote_con.create_votes_info(str(ret["ts"]), msg)
+    if 'attachments' in msg and len(msg['attachments']) > 0:
+        ret = send_message(channel, **msg)
+        vote_con.create_votes_info(str(ret["ts"]), msg)
+        return True
+    else:
+        msg = {'text': "Sorry, I wasn't able to find any places that are still open :crying_cat_face:"}
+        send_message(channel, **msg)
+        return False
 
 def print_winner(channel, winner_id):
     #arrays used to pass into the format_restaurant method
