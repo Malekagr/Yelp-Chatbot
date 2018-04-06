@@ -103,6 +103,7 @@ def message_actions():
         elif selection == "reroll":
           # reroll votes
             business_ids = bid_con.get_business_ids()
+            print('initial b_ids:', business_ids)
             if len(business_ids) < 3 and len(business_ids) > 0:
                 list_of_ids = business_ids
                 bid_con.set_business_ids([])
@@ -117,13 +118,10 @@ def message_actions():
                 bid_con.set_business_ids(business_ids)
             # wipes out all votes
             vote_con.reset_user_votes()
+            print('list_of_ids:', list_of_ids)
 
-            restaurants_arr = []
-            reviews_arr = []
-            for restaurant_id in list_of_ids:
-                restaurants_arr.append(yelp_api.get_business(restaurant_id))
-                reviews_arr.append(yelp_api.get_reviews(restaurant_id))
-            msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)
+            restaurants_arr = [yelp_api.get_business(restaurant_id) for restaurant_id in list_of_ids]
+            msg = slack_format.build_vote_message(restaurants_arr)
 
             vote_con.set_msg_attachments(msg)
             ret = update_message(channel_id, vote_con.get_votes_ts(), **msg)
@@ -193,7 +191,7 @@ def bot_invoked(event_data):
                 ret = static_messages.send_invoker_options(user, channel_id, slack_client)
                 invoker_con.create_invoker_info(user, ret["message_ts"])
         else:
-            send_help(channel_id=channel_id, slack_client=slack_client)
+            send_help(bot_name="yoshinobot", channel_id=channel_id, slack_client=slack_client)
 
     return okay()
 
@@ -223,13 +221,9 @@ def search(channel, term="lunch", location="pittsburgh, pa"):
 
     partial_ids, business_ids = ReRoll(business_ids).reroll()
     bid_con.create_business_ids(business_ids)
-
-    restaurants_arr = []
-    reviews_arr = []
-    for restaurant_id in partial_ids:
-        restaurants_arr.append(yelp_api.get_business(restaurant_id))
-        reviews_arr.append(yelp_api.get_reviews(restaurant_id))
-    msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)
+    
+    restaurants_arr = [yelp_api.get_business(restaurant_id) for restaurant_id in partial_ids]
+    msg = slack_format.build_vote_message(restaurants_arr)
     if 'attachments' in msg and len(msg['attachments']) > 0:
         ret = send_message(channel, **msg)
         vote_con.create_votes_info(str(ret["ts"]), msg)
@@ -242,15 +236,13 @@ def search(channel, term="lunch", location="pittsburgh, pa"):
 def print_winner(channel, winner_id):
     #arrays used to pass into the format_restaurant method
     winner_arr = []
-    winner_review = []
 
     #winner_id used for identifying which resturant to display
     #build the arrays to pass into printing the new message
     winner_arr.append(yelp_api.get_business(winner_id))
-    winner_review.append(yelp_api.get_reviews(winner_id))
 
     #print the new message
-    msg = slack_format.build_normal_message(winner_arr, winner_review)
+    msg = slack_format.build_normal_message(winner_arr)
     return send_message(channel, **msg)
     
 def extract_restaurants_from_attachments(att=""):
