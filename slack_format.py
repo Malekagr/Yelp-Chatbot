@@ -6,25 +6,23 @@ footer_icon = "https://www.yelp.com/favicon.ico"
 placeholder_image = "https://s3-media3.fl.yelpcdn.com/assets/srv0/yelp_styleguide/fe8c0c8725d3/assets/img/default_avatars/business_90_square.png"
 maps_api = "https://www.google.com/maps/search/?api=1&"
 
-def build_vote_message(restaurant_arr, reviews_arr):
+def build_vote_message(restaurant_arr):
   msg = {"text": "I found these options:", "attachments": []}
-  for i in range(len(restaurant_arr)):
-    msg["attachments"].append(format_with_vote_button(
-      restaurant_arr[i], reviews_arr[i]))
+  for r in restaurant_arr:
+    msg["attachments"].append(format_with_vote_button(r))
   return msg
 
-def build_normal_message(restaurant_arr, reviews_arr, text=""):
-    msg = {"text": text, "attachments": []}
-    for i in range(len(restaurant_arr)):
-        msg["attachments"].append(format_restaurant(
-        restaurant_arr[i], reviews_arr[i]))
-    return msg
+def build_normal_message(restaurant_arr, text=""):
+  msg = {"text": text, "attachments": []}
+  for r in restaurant_arr:
+    msg["attachments"].append(format_restaurant(r))
+  return msg
 
 # formats the given restaurant and review message
 # uses format_restaurant
 # adds necessary voting bits
-def format_with_vote_button(restaurant, reviews):
-  formatted = format_restaurant(restaurant, reviews)
+def format_with_vote_button(restaurant):
+  formatted = format_restaurant(restaurant)
   formatted["callback_id"] = "vote"
   formatted["actions"] = [{
     "name": restaurant["name"],
@@ -39,7 +37,7 @@ def format_with_vote_button(restaurant, reviews):
 # nicely formats a restaurant as an attachment
 # TODO: use the stars that Yelp requires
 # TODO: address/nav-link
-def format_restaurant(restaurant, reviews):
+def format_restaurant(restaurant):
   # we need a name and URL no matter what
   if not ("name" in restaurant and "url" in restaurant):
     return {"text": "Could not format"}
@@ -47,7 +45,7 @@ def format_restaurant(restaurant, reviews):
   link = restaurant["url"]
 
   rating = get_rating(restaurant)
-  snippet = get_review_snippet(reviews)
+  categories = get_categories(restaurant)
   image = get_image(restaurant)
   price = get_price(restaurant)
 
@@ -62,7 +60,7 @@ def format_restaurant(restaurant, reviews):
   restaurant_attachment["author_link"] = link
   restaurant_attachment["title"] = name
   restaurant_attachment["title_link"] = link
-  restaurant_attachment["text"] = snippet
+  restaurant_attachment["text"] = categories
   restaurant_attachment["thumb_url"] = image
   restaurant_attachment["footer"] = footer
   restaurant_attachment["footer_icon"] = footer_icon
