@@ -191,7 +191,7 @@ def bot_invoked(event_data):
                 ret = static_messages.send_invoker_options(user, channel_id, slack_client)
                 invoker_con.create_invoker_info(user, ret["message_ts"])
         else:
-            send_help(bot_name="yoshinobot", channel_id=channel_id, slack_client=slack_client)
+            send_help(channel_id=channel_id, slack_client=slack_client)
 
     return okay()
 
