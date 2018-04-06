@@ -7,7 +7,8 @@ def send_help(channel_id, slack_client, bot_name="yelp_chatbot"):
         •`{0} location city/zip-code/address` *sets the location* for a channel.
         •`{0} help` will display this *help message.*
         •`{0} poll [search terms, optional]` will *start a poll.*
-    Yelp Chatbot uses a roulette system, meaning any displayed restaurant that has at least one vote can win. 
+    Yelp Chatbot uses a roulette system, meaning any displayed restaurant that has at least one vote can win.
+    A restaurant with more votes weighs higher (has a higher chance of winning) than restaurants with lower votes, but any restaurant with votes may win the roulette.
     '''.format(displayed_bot_name)
     slack_client.api_call("chat.postMessage", channel=channel_id, text=msg)
 
