@@ -100,8 +100,11 @@ def is_open(restaurant):
 def get_closing_time(restaurant):
   if "hours" in restaurant:
     weekday = datetime.datetime.today().weekday()
-    endtime = restaurant["hours"][0]["open"][weekday]["end"]
-    return endtime[:2] + ":" + endtime[2:]
+    try:
+      endtime = restaurant["hours"][0]["open"][weekday]["end"]
+      return endtime[:2] + ":" + endtime[2:]
+    except IndexError:
+      return "Unsure"    
   return None
 
 # get categories
