@@ -35,6 +35,12 @@ def reject_repeats(f1):
         if "X-Slack-Retry-Reason" in request.headers and request.headers["X-Slack-Retry-Reason"] == "http_timeout":
             print("ignored http_timeout request")
             return okay()
+        if "X-Slack-Retry-Reason" in request.headers and request.headers["X-Slack-Retry-Reason"] == "http_error":
+            print("ignored http_error request")
+            return okay()
+        if "X-Slack-Retry-Reason" in request.headers and request.headers["X-Slack-Retry-Reason"] == "unknown_error":
+            print("ignored unknown_error request")
+            return okay()
         return f1(*args, **kwargs)
     return f2
 
