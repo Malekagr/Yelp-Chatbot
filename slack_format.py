@@ -103,7 +103,7 @@ def get_closing_time(restaurant):
     try:
       endtime = [h['start'] for h in restaurant['hours'][0]['open'] if h['day'] == weekday].pop(0)
       return endtime[:2] + ":" + endtime[2:]
-    except IndexError:
+    except (IndexError, KeyError) as e:
       return "Unsure"    
   return None
 
