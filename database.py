@@ -66,7 +66,12 @@ class AccessVotes(object):
 
     def get_votes_ts(self):
         if self._values:
-            return str(self._values[0][self._votes_timestamp_pos])
+            # if timestamp has trailing values like
+            # 1523317315.000010, if pass this to ts to delete
+            # as a float, it would end up like 1523317315.00001
+            # which is an incorrect timestamp
+            # so only pass to it as a string
+            return str(self._values[0][self._votes_timestamp_pos]) 
         else:
             return -1
 
