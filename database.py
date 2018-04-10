@@ -292,9 +292,9 @@ class AccessGeneral(object):
 
     def validate_timestamp(self, cur_ts):
         cur_ts = float(cur_ts)
-        past = self.get_ts()
+        past = float(self.get_ts())
         print('PAST:', past,'CURRENT:',cur_ts)
-        if cur_ts <= past:
+        if int(cur_ts) < int(past):
             return False
         return True
 
@@ -333,7 +333,7 @@ class AccessPoll(object):
         else:
             self.set_terms(terms)
             self.set_locations(locations)
-            print("channel name already exists")
+            #print("channel name already exists")
 
     def set_terms(self, terms=""):
         if not terms.rstrip():
