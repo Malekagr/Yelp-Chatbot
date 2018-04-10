@@ -66,7 +66,7 @@ class AccessVotes(object):
 
     def get_votes_ts(self):
         if self._values:
-            return float(self._values[0][self._votes_timestamp_pos])
+            return str(self._values[0][self._votes_timestamp_pos])
         else:
             return -1
 
