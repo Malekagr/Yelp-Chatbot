@@ -118,7 +118,7 @@ def get_categories(restaurant):
 # get emoji list for restaurant
 def get_emojis(restaurant):
   if "categories" in restaurant and len(restaurant["categories"]) > 0:
-    return ''.join(set(map((lambda cat: category_to_emoji(cat["title"])), restaurant["categories"])))
+    return "".join(set(map((lambda cat: category_to_emoji(cat["title"])), restaurant["categories"])))
   return None
 
 # get a slack emoji name from a Yelp category name
@@ -131,7 +131,7 @@ def category_to_emoji(cat_name):
 
   if cat_name in categories_map:
     return ":" + categories_map[cat_name] + ":"
-  return None
+  return ""
 
 # get review snippet
 def get_review_snippet(reviews):
