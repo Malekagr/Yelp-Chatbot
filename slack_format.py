@@ -1,10 +1,11 @@
-import datetime, urllib.parse
+import datetime, urllib.parse, json
 
 sidebar_color = "#D01010"
 footer = "YelpBot"
 footer_icon = "https://www.yelp.com/favicon.ico"
 placeholder_image = "https://s3-media3.fl.yelpcdn.com/assets/srv0/yelp_styleguide/fe8c0c8725d3/assets/img/default_avatars/business_90_square.png"
 maps_api = "https://www.google.com/maps/search/?api=1&"
+categories_map = {}
 
 def build_vote_message(restaurant_arr):
   msg = {"text": "I found these options:", "attachments": []}
@@ -104,7 +105,7 @@ def get_closing_time(restaurant):
       endtime = [h['end'] for h in restaurant['hours'][0]['open'] if h['day'] == weekday].pop(0)
       return endtime[:2] + ":" + endtime[2:]
     except (IndexError, KeyError) as e:
-      return "Unsure"    
+      return "Unsure"
   return None
 
 # get categories
@@ -137,4 +138,16 @@ def get_nav_link(restaurant):
   address = get_address(restaurant)
   if address:
     return maps_api + urllib.parse.urlencode({"query": address})
+  return None
+
+# get a slack emoji name from a Yelp category name
+def category_to_emoji(cat_name):
+  global categories_map
+  cat_name = cat_name.lower()
+
+  if len(categories_map) == 0:
+    categories_map = json.load(open("categories.json"))
+
+  if cat_name in categories_map:
+    return ":" + categories_map[cat_name] + ":"
   return None
