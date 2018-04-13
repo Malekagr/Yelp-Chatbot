@@ -80,7 +80,7 @@ class Finalize(object):
         elif len(user_votes) > 0:
             probs = Poll.get_probabilities(user_votes)
             winner = Poll.get_winner(user_votes)
-            s = "*Rolling*... :game_die:"
+            s = "*Rolling*... :game_die:\n"
             for k,v in probs.items():
                 s += "{0} has probability of *{1}%* to be chosen\n".format(all_res.get(k), v*100)
             return s, winner

@@ -179,7 +179,7 @@ def bot_invoked(event_data):
             terms = ap_con.get_terms()
             location = ap_con.get_locations()
             # send the searching indication message
-            slack_client.api_call("chat.postMessage", channel=channel_id, text=":mag: Searching for {} in {}...".format(terms, location))
+            slack_client.api_call("chat.postMessage", channel=channel_id, text="Searching for {} in {}... :mag:".format(terms, location))
 
             # set the message timestamp value
             general_con.create_general_info(message["ts"])
