@@ -47,6 +47,7 @@ def format_restaurant(restaurant):
 
   rating = get_rating(restaurant)
   categories = get_categories(restaurant)
+  emojis = get_emojis(restaurant)
   image = get_image(restaurant)
   price = get_price(restaurant)
 
@@ -61,7 +62,7 @@ def format_restaurant(restaurant):
   restaurant_attachment["author_link"] = link
   restaurant_attachment["title"] = name
   restaurant_attachment["title_link"] = link
-  restaurant_attachment["text"] = categories
+  restaurant_attachment["text"] = categories + " " + emojis
   restaurant_attachment["thumb_url"] = image
   restaurant_attachment["footer"] = footer
   restaurant_attachment["footer_icon"] = footer_icon
@@ -114,6 +115,24 @@ def get_categories(restaurant):
     return "/".join(map((lambda cat: cat["title"]), restaurant["categories"]))
   return None
 
+# get emoji list for restaurant
+def get_emojis(restaurant):
+  if "categories" in restaurant and len(restaurant["categories"]) > 0:
+    return ''.join(set(map((lambda cat: category_to_emoji(cat["title"])), restaurant["categories"])))
+  return None
+
+# get a slack emoji name from a Yelp category name
+def category_to_emoji(cat_name):
+  global categories_map
+  cat_name = cat_name.lower()
+
+  if len(categories_map) == 0:
+    categories_map = json.load(open("categories.json"))
+
+  if cat_name in categories_map:
+    return ":" + categories_map[cat_name] + ":"
+  return None
+
 # get review snippet
 def get_review_snippet(reviews):
   current_rating = -1
@@ -138,16 +157,4 @@ def get_nav_link(restaurant):
   address = get_address(restaurant)
   if address:
     return maps_api + urllib.parse.urlencode({"query": address})
-  return None
-
-# get a slack emoji name from a Yelp category name
-def category_to_emoji(cat_name):
-  global categories_map
-  cat_name = cat_name.lower()
-
-  if len(categories_map) == 0:
-    categories_map = json.load(open("categories.json"))
-
-  if cat_name in categories_map:
-    return ":" + categories_map[cat_name] + ":"
   return None
