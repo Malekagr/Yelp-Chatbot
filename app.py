@@ -179,11 +179,11 @@ def bot_invoked(event_data):
             terms = ap_con.get_terms()
             location = ap_con.get_locations()
             # send the searching indication message
-            slack_client.api_call("chat.postMessage", channel=channel_id, text="Searching for {} in {}...".format(terms, location))
-            
+            slack_client.api_call("chat.postMessage", channel=channel_id, text=":mag: Searching for {} in {}...".format(terms, location))
+
             # set the message timestamp value
             general_con.create_general_info(message["ts"])
-            if search(channel_id, term=terms, location=location):   
+            if search(channel_id, term=terms, location=location):
                 # if the search was successful
                 # i.e. there was at least one opened place found
                 # send the actual search with options and buttons
@@ -220,7 +220,7 @@ def search(channel, term="lunch", location="pittsburgh, pa"):
 
     partial_ids, business_ids = ReRoll(business_ids).reroll()
     bid_con.create_business_ids(business_ids)
-    
+
     restaurants_arr = [yelp_api.get_business(restaurant_id) for restaurant_id in partial_ids]
     msg = slack_format.build_vote_message(restaurants_arr)
     if 'attachments' in msg and len(msg['attachments']) > 0:
@@ -243,7 +243,7 @@ def print_winner(channel, winner_id):
     #print the new message
     msg = slack_format.build_normal_message(winner_arr)
     return send_message(channel, **msg)
-    
+
 def extract_restaurants_from_attachments(att=""):
     try:
         ret = ast.literal_eval(str(att))
