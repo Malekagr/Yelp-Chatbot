@@ -36,6 +36,7 @@ class YelpAPI(object):
         url_params = {
             'term': term.replace(' ', '+'),
             'location': location.replace(' ', '+'),
-            'limit': search_limit
+            'limit': search_limit,
+            'open_now': True
         }
         return self.request(self.API_HOST, self.SEARCH_PATH, self.key, url_params=url_params)

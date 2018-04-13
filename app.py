@@ -32,6 +32,15 @@ def reject_repeats(f1):
         if "X-Slack-Retry-Num" in request.headers and int(request.headers["X-Slack-Retry-Num"]) > 1:
             print("Caught and blocked a retry - retry reason ({})".format(request.headers["X-Slack-Retry-Reason"]))
             return okay()
+        if "X-Slack-Retry-Reason" in request.headers and request.headers["X-Slack-Retry-Reason"] == "http_timeout":
+            print("ignored http_timeout request")
+            return okay()
+        if "X-Slack-Retry-Reason" in request.headers and request.headers["X-Slack-Retry-Reason"] == "http_error":
+            print("ignored http_error request")
+            return okay()
+        if "X-Slack-Retry-Reason" in request.headers and request.headers["X-Slack-Retry-Reason"] == "unknown_error":
+            print("ignored unknown_error request")
+            return okay()
         return f1(*args, **kwargs)
     return f2
 
@@ -63,13 +72,9 @@ def message_actions():
     bid_con = AccessBusinessIDs(channel_id, db_conn)
     general_con = AccessGeneral(channel_id, db_conn)
 
-    print("callback_id=", callback_id)
-
     if callback_id == "vote" and float(message_ts) == float(vote_con.get_votes_ts()):
         # this part handles vote buttons
-        #print("Updating votes")
         vote_con.set_user_votes(user_id, selection)
-        #print("updated votes:", vote_con.get_user_votes())
         poll = Poll(vote_con.get_msg_attachments(), vote_con.get_user_votes())
         update_message(channel_id, ts=vote_con.get_votes_ts(), **poll.get_updated_attachments())
 
@@ -84,7 +89,6 @@ def message_actions():
 
     elif callback_id == "invoker_controls":
         if user_id != invoker_con.get_invoker_id():
-            print("Invoker:", invoker_con.get_invoker_id(), "user:", user_id)
             return okay()
 
         if selection == "finalize":
@@ -107,7 +111,6 @@ def message_actions():
                 list_of_ids = business_ids
                 bid_con.set_business_ids([])
             elif len(business_ids) <= 0:
-                print("out of ids")
                 slack_client.api_call("chat.postMessage", channel=channel_id, text="There are no more restaurants to reroll.")
                 # don't make any modification to the current poll
                 return okay()
@@ -118,12 +121,8 @@ def message_actions():
             # wipes out all votes
             vote_con.reset_user_votes()
 
-            restaurants_arr = []
-            reviews_arr = []
-            for restaurant_id in list_of_ids:
-                restaurants_arr.append(yelp_api.get_business(restaurant_id))
-                reviews_arr.append(yelp_api.get_reviews(restaurant_id))
-            msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)
+            restaurants_arr = [yelp_api.get_business(restaurant_id) for restaurant_id in list_of_ids]
+            msg = slack_format.build_vote_message(restaurants_arr)
 
             vote_con.set_msg_attachments(msg)
             ret = update_message(channel_id, vote_con.get_votes_ts(), **msg)
@@ -161,7 +160,6 @@ def bot_invoked(event_data):
 
         if not general_con.validate_timestamp(message["ts"]):
             # the received message either has old timestamp or the same value as the current stored one
-            print("Received message too old!")
             return okay()
 
         command_info = parse_command(text)
@@ -174,7 +172,6 @@ def bot_invoked(event_data):
         elif command_info["type"] == "poll":
             # don't proceed if there's an ongoing poll
             if invoked_ts != None and float(invoked_ts) > 0:
-                print("There is an ongoing poll")
                 static_messages.send_busy_message(invoked_channel, slack_client)
                 return okay()
             # renew the terms value if any
@@ -183,12 +180,15 @@ def bot_invoked(event_data):
             location = ap_con.get_locations()
             # send the searching indication message
             slack_client.api_call("chat.postMessage", channel=channel_id, text="Searching for {} in {}...".format(terms, location))
-            # send the actual search with options and buttons
-            search(channel_id, term=terms, location=location)
+            
             # set the message timestamp value
             general_con.create_general_info(message["ts"])
-            ret = static_messages.send_invoker_options(user, channel_id, slack_client)
-            invoker_con.create_invoker_info(user, ret["message_ts"])
+            if search(channel_id, term=terms, location=location):   
+                # if the search was successful
+                # i.e. there was at least one opened place found
+                # send the actual search with options and buttons
+                ret = static_messages.send_invoker_options(user, channel_id, slack_client)
+                invoker_con.create_invoker_info(user, ret["message_ts"])
         else:
             send_help(channel_id=channel_id, slack_client=slack_client)
 
@@ -220,29 +220,28 @@ def search(channel, term="lunch", location="pittsburgh, pa"):
 
     partial_ids, business_ids = ReRoll(business_ids).reroll()
     bid_con.create_business_ids(business_ids)
-
-    restaurants_arr = []
-    reviews_arr = []
-    for restaurant_id in partial_ids:
-        restaurants_arr.append(yelp_api.get_business(restaurant_id))
-        reviews_arr.append(yelp_api.get_reviews(restaurant_id))
-    msg = slack_format.build_vote_message(restaurants_arr, reviews_arr)
-
-    ret = send_message(channel, **msg)
-    vote_con.create_votes_info(str(ret["ts"]), msg)
+    
+    restaurants_arr = [yelp_api.get_business(restaurant_id) for restaurant_id in partial_ids]
+    msg = slack_format.build_vote_message(restaurants_arr)
+    if 'attachments' in msg and len(msg['attachments']) > 0:
+        ret = send_message(channel, **msg)
+        vote_con.create_votes_info(str(ret["ts"]), msg)
+        return True
+    else:
+        msg = {'text': "Sorry, I wasn't able to find any places that are still open :crying_cat_face:"}
+        send_message(channel, **msg)
+        return False
 
 def print_winner(channel, winner_id):
     #arrays used to pass into the format_restaurant method
     winner_arr = []
-    winner_review = []
 
     #winner_id used for identifying which resturant to display
     #build the arrays to pass into printing the new message
     winner_arr.append(yelp_api.get_business(winner_id))
-    winner_review.append(yelp_api.get_reviews(winner_id))
 
     #print the new message
-    msg = slack_format.build_normal_message(winner_arr, winner_review)
+    msg = slack_format.build_normal_message(winner_arr)
     return send_message(channel, **msg)
     
 def extract_restaurants_from_attachments(att=""):
